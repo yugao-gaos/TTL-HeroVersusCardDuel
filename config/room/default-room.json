@@ -1,0 +1,14 @@
+{
+  "id": "default-room",
+  "label": "Default Room",
+  "table": {
+    "halfSize": 10,
+    "seatEdge": "around",
+    "seatRowOffset": 1.4,
+    "seatInwardFromRim": 0.55,
+    "alongEdgeInset": 1.25
+  },
+  "environment": {
+    "backgroundColor": "#0f172a"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "HeroVersusCardDuel",
+  "description": "2 player card duel",
+  "minPlayers": 2,
+  "maxPlayers": 4,
+  "seats": [
+    {
+      "id": "seat-1",
+      "label": "Player 1"
+    },
+    {
+      "id": "seat-2",
+      "label": "Player 2"
+    },
+    {
+      "id": "seat-3",
+      "label": "Player 3"
+    },
+    {
+      "id": "seat-4",
+      "label": "Player 4"
+    }
+  ],
+  "teams": [
+    {
+      "id": "builders",
+      "label": "Builders",
+      "color": "#f59e0b"
+    },
+    {
+      "id": "explorers",
+      "label": "Explorers",
+      "color": "#3b82f6"
+    }
+  ],
+  "roomPresetPath": "config/room/default-room.json",
+  "initialScene": {
+    "type": "entities",
+    "path": "config/entities.json"
+  },
+  "globalScripts": [
+    "game-rules"
+  ],
+  "version": "0.2.0"
+}

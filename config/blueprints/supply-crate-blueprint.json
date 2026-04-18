@@ -1,0 +1,19 @@
+{
+  "id": "supply-crate-blueprint",
+  "kind": "container",
+  "label": "Supply Crate Blueprint",
+  "data": {
+    "label": "Supply Crate",
+    "visual": {
+      "color": "#6b4226",
+      "texture": "assets/textures/crate-badge.svg"
+    },
+    "props": {
+      "maxCapacity": 6
+    },
+    "scriptId": "demo-piece-rules",
+    "customData": {
+      "lootTable": "starter-supplies"
+    }
+  }
+}

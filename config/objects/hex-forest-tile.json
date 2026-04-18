@@ -1,0 +1,15 @@
+{
+  "id": "hex-forest-tile",
+  "blueprintId": "hex-tile-blueprint",
+  "label": "Forest Hex Tile",
+  "overrides": {
+    "visual": {
+      "color": "#15803d",
+      "texture": "assets/textures/forest-tile.svg"
+    },
+    "customData": {
+      "terrainType": "forest",
+      "grantsCover": true
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "treasure-deck-blueprint",
+  "kind": "deck",
+  "label": "Treasure Deck Blueprint",
+  "data": {
+    "label": "Treasure Deck",
+    "props": {
+      "deckId": "treasure",
+      "maxCapacity": 30
+    },
+    "customData": {
+      "drawMode": "top"
+    }
+  }
+}

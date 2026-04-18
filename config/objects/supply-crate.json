@@ -1,0 +1,17 @@
+{
+  "id": "supply-crate",
+  "blueprintId": "supply-crate-blueprint",
+  "label": "Supply Crate",
+  "overrides": {
+    "visual": {
+      "texture": "assets/textures/crate-badge.svg"
+    },
+    "props": {
+      "maxCapacity": 4
+    },
+    "customData": {
+      "lootTable": "starter-supplies",
+      "unusedDesignerNote": "Example unused data stays persisted until manually removed."
+    }
+  }
+}

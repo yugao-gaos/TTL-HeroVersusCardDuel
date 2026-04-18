@@ -1,0 +1,84 @@
+{
+  "initialStateId": "lobby",
+  "states": [
+    {
+      "id": "lobby",
+      "label": "Lobby",
+      "position": {
+        "x": 80,
+        "y": 120
+      },
+      "scriptId": "states/lobby"
+    },
+    {
+      "id": "setup",
+      "label": "Setup",
+      "position": {
+        "x": 320,
+        "y": 120
+      },
+      "scriptId": "states/setup"
+    },
+    {
+      "id": "turn",
+      "label": "Turn",
+      "position": {
+        "x": 560,
+        "y": 120
+      },
+      "scriptId": "states/turn"
+    },
+    {
+      "id": "end",
+      "label": "End",
+      "position": {
+        "x": 800,
+        "y": 120
+      },
+      "scriptId": "states/end"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "lobby-start",
+      "fromStateId": "lobby",
+      "toStateId": "setup",
+      "label": "Start Game",
+      "trigger": {
+        "type": "input",
+        "inputType": "start_game"
+      },
+      "scriptId": "transitions/lobby-start"
+    },
+    {
+      "id": "setup-turn",
+      "fromStateId": "setup",
+      "toStateId": "turn",
+      "label": "Finish Setup",
+      "trigger": {
+        "type": "auto"
+      }
+    },
+    {
+      "id": "turn-end-turn",
+      "fromStateId": "turn",
+      "toStateId": "turn",
+      "label": "End Turn",
+      "trigger": {
+        "type": "input",
+        "inputType": "end_turn"
+      },
+      "scriptId": "transitions/turn-end"
+    },
+    {
+      "id": "turn-winner",
+      "fromStateId": "turn",
+      "toStateId": "end",
+      "label": "Winner Declared",
+      "trigger": {
+        "type": "auto"
+      },
+      "scriptId": "transitions/turn-winner"
+    }
+  ]
+}

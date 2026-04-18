@@ -1,0 +1,11 @@
+{
+  "kindScripts": [
+    "kinds/meeple-kind"
+  ],
+  "traitScripts": [
+    "traits/stackable-trait"
+  ],
+  "kindEditorScripts": [
+    "kinds/meeple-kind.editor"
+  ]
+}

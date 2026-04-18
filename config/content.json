@@ -1,0 +1,16 @@
+{
+  "blueprintFiles": [
+    "config/blueprints/action-card-blueprint.json",
+    "config/blueprints/hex-tile-blueprint.json",
+    "config/blueprints/treasure-deck-blueprint.json",
+    "config/blueprints/supply-crate-blueprint.json",
+    "config/blueprints/worker-meeple-blueprint.json"
+  ],
+  "objectFiles": [
+    "config/objects/attack-action-card.json",
+    "config/objects/hex-forest-tile.json",
+    "config/objects/treasure-deck.json",
+    "config/objects/supply-crate.json",
+    "config/objects/worker-meeple.json"
+  ]
+}
