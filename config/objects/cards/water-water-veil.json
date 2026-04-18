@@ -1,0 +1,21 @@
+{
+  "id": "water-water-veil",
+  "blueprintId": "hvcd-card-blueprint",
+  "label": "Water Veil",
+  "overrides": {
+    "label": "Water Veil",
+    "props": {
+      "element": "water",
+      "rarity": "common",
+      "heroId": "aqua",
+      "totalFrames": 9,
+      "attackWindows": {},
+      "defenseWindows": {
+        "block": { "frames": [4, 8] },
+        "evasion": { "frames": [1, 3] }
+      },
+      "cancelWindow": null,
+      "rageVariant": null
+    }
+  }
+}

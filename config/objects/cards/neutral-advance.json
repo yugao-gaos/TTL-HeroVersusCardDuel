@@ -1,0 +1,21 @@
+{
+  "id": "neutral-advance",
+  "blueprintId": "hvcd-card-blueprint",
+  "label": "Advance",
+  "overrides": {
+    "label": "Advance",
+    "props": {
+      "element": "neutral",
+      "rarity": "common",
+      "heroId": null,
+      "totalFrames": 3,
+      "attackWindows": {},
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null
+    },
+    "customData": {
+      "b1-note": "Empty card in legacy model; may be a filler/spacer equivalent. Flagged in MIGRATION-NOTES."
+    }
+  }
+}

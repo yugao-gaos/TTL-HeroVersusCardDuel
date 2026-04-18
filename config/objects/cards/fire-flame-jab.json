@@ -1,0 +1,20 @@
+{
+  "id": "fire-flame-jab",
+  "blueprintId": "hvcd-card-blueprint",
+  "label": "Flame Jab",
+  "overrides": {
+    "label": "Flame Jab",
+    "props": {
+      "element": "fire",
+      "rarity": "common",
+      "heroId": "blaze",
+      "totalFrames": 7,
+      "attackWindows": {
+        "hit": { "frames": [2, 4], "damage": 2, "hits": 1 }
+      },
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null
+    }
+  }
+}

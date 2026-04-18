@@ -1,0 +1,28 @@
+{
+  "id": "hvcd-item-blueprint",
+  "kind": "hvcd.item",
+  "label": "HVCD Item Blueprint",
+  "data": {
+    "label": "HVCD Item",
+    "tags": ["hvcd-item"],
+    "traits": {
+      "flippable": { "faceUp": false }
+    },
+    "props": {
+      "element": "neutral",
+      "rarity": "common",
+      "heroId": null,
+      "totalFrames": 1,
+      "attackWindows": {},
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null,
+      "artPath": null,
+      "usages": null,
+      "itemKind": "consumable",
+      "heroLock": null,
+      "effectPayload": {}
+    },
+    "customData": {}
+  }
+}

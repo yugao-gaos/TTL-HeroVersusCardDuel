@@ -1,0 +1,197 @@
+{
+  "keywords": [
+    {
+      "id": "hit",
+      "label": "Hit",
+      "hint": "Melee strike. Blocked, absorbed by armor, dodged by evasion, parried.",
+      "folderPath": "attack-windows"
+    },
+    {
+      "id": "grab",
+      "label": "Grab",
+      "hint": "Bypasses block and armor. Loses to hit, dodged by evasion.",
+      "folderPath": "attack-windows"
+    },
+    {
+      "id": "projectile",
+      "label": "Projectile",
+      "hint": "Intrinsically homing (beats evasion). Blocked, armored, or reflected. Persists in flight until it lands, clashes, or is reflected.",
+      "folderPath": "attack-windows"
+    },
+    {
+      "id": "parry",
+      "label": "Parry",
+      "hint": "Active counter. Triggers when an enemy hit enters its window: incoming hit nullified, attacker stunned per parry's own payload. Loses to grab and projectile.",
+      "folderPath": "attack-windows"
+    },
+    {
+      "id": "effect",
+      "label": "Effect",
+      "hint": "State-changing attack window. Instant (HP/rage/etc.) or standing (duration-bounded modifier). Activation is low-priority; active standing effects are high-priority.",
+      "folderPath": "attack-windows"
+    },
+    {
+      "id": "block",
+      "label": "Block",
+      "hint": "Per-frame defense tokens. Each token absorbs one hit. blockStun extensions draw from the block pool.",
+      "folderPath": "defense-windows"
+    },
+    {
+      "id": "armor",
+      "label": "Armor",
+      "hint": "Absorbs hit/projectile stun for up to `absorbs` hits; damage still applies. Armor breaks after `absorbs` is exceeded.",
+      "folderPath": "defense-windows"
+    },
+    {
+      "id": "evasion",
+      "label": "Evasion",
+      "hint": "Dodges hit and grab. Loses to projectile (always homing).",
+      "folderPath": "defense-windows"
+    },
+    {
+      "id": "reflect",
+      "label": "Reflect",
+      "hint": "Reverses a projectile back at the caster (owner flipped). `reflectTravel` frames until return.",
+      "folderPath": "defense-windows"
+    },
+    {
+      "id": "cancel",
+      "label": "Cancel",
+      "hint": "Single-frame point where a card can truncate and hand off to the next slot. Fires via `hitCancel` (after a prior connect) or via arming (rage pre-paid at commit).",
+      "folderPath": "cancel"
+    },
+    {
+      "id": "hitStun",
+      "label": "Hit Stun",
+      "hint": "Frames of stun placed on the defender when a hit lands through defense. Defaults to the hit window's frame count if omitted.",
+      "folderPath": "payloads"
+    },
+    {
+      "id": "blockStun",
+      "label": "Block Stun",
+      "hint": "Frames of block extension placed on the defender when a hit lands on a block token. Extensions draw from the block pool; overflow becomes stun tokens.",
+      "folderPath": "payloads"
+    },
+    {
+      "id": "defenseBreaker",
+      "label": "Defense Breaker",
+      "hint": "Attack ignores block and armor; still stoppable by parry (nullified) and evasion (dodged).",
+      "folderPath": "payloads"
+    },
+    {
+      "id": "knockdown",
+      "label": "Knockdown",
+      "hint": "A knockdown-flagged hit places knockdown tokens (defender is untouchable during them) and ends the showdown on connect.",
+      "folderPath": "payloads"
+    },
+    {
+      "id": "rageCost",
+      "label": "Rage Cost",
+      "hint": "Rage pre-paid at commit. Used to arm a cancel, play a variant (EX), or play a Super (required variant).",
+      "folderPath": "economy"
+    },
+    {
+      "id": "rage",
+      "label": "Rage",
+      "hint": "Offensive resource gained 1:1 from damage taken. Spent on armed cancels, EX variants, and Supers. Non-refundable once spent.",
+      "folderPath": "economy"
+    },
+    {
+      "id": "blockPool",
+      "label": "Block Pool",
+      "hint": "Six tokens per showdown (refills between showdowns). Spent on block-spacer slots at commit and on block-stun extensions reactively during showdown.",
+      "folderPath": "economy"
+    },
+    {
+      "id": "blockSpacer",
+      "label": "Block Spacer",
+      "hint": "A card-less sequence slot that places `tokens` consecutive block tokens from the pool. Useful for frame alignment and defensive cushions.",
+      "folderPath": "sequence-slot"
+    },
+    {
+      "id": "variant",
+      "label": "Variant (EX)",
+      "hint": "A card's rage-paid alternate version. Inherits base windows sub-key-wise for attack/defense; replaces cancelWindow wholesale.",
+      "folderPath": "economy"
+    },
+    {
+      "id": "super",
+      "label": "Super",
+      "hint": "A card whose `rageVariant.required === true` — base is unplayable, can only be played as variant.",
+      "folderPath": "economy"
+    },
+    {
+      "id": "hits",
+      "label": "Hits",
+      "hint": "Multi-hit count on an attack window. Multi-hit interacts with block tokens, armor absorbs, and projectile clash via the hit-subtraction rule.",
+      "folderPath": "payloads"
+    },
+    {
+      "id": "travelFrames",
+      "label": "Travel Frames",
+      "hint": "Projectile's global-frame delay from spawn to arrival. Fast (3-6), medium (8-14), heavy (18-30).",
+      "folderPath": "payloads"
+    },
+    {
+      "id": "reflectTravel",
+      "label": "Reflect Travel",
+      "hint": "Frames until a reflected projectile returns. 0 = instant counter, 1-4 = short, 5+ = slow/mitigation-only.",
+      "folderPath": "payloads"
+    },
+    {
+      "id": "sequence",
+      "label": "Sequence",
+      "hint": "A seat-owned queue of face-down slots. Committed in the commit phase; dequeued onto the timeline during showdown.",
+      "folderPath": "core"
+    },
+    {
+      "id": "timeline",
+      "label": "Timeline",
+      "hint": "The shared resolution clock. Cursor advances frame-by-frame; tokens live at frames; interactions resolve here.",
+      "folderPath": "core"
+    },
+    {
+      "id": "inventory",
+      "label": "Inventory",
+      "hint": "Hero's private set of equipped items. Items commit to sequence slots; resolve on dequeue; return to inventory until usages hit 0.",
+      "folderPath": "core"
+    },
+    {
+      "id": "standingEffect",
+      "label": "Standing Effect",
+      "hint": "Effect with a duration; modifies future frame resolution until its effect-end token fires.",
+      "folderPath": "attack-windows"
+    }
+  ],
+  "tags": [
+    { "id": "hero-blaze", "folderPath": "heroes" },
+    { "id": "hero-aqua",  "folderPath": "heroes" },
+    { "id": "hero-terra", "folderPath": "heroes" },
+    { "id": "hero-volt",  "folderPath": "heroes" },
+    { "id": "element-fire",      "folderPath": "elements" },
+    { "id": "element-water",     "folderPath": "elements" },
+    { "id": "element-earth",     "folderPath": "elements" },
+    { "id": "element-lightning", "folderPath": "elements" },
+    { "id": "element-neutral",   "folderPath": "elements" },
+    { "id": "rarity-common",    "folderPath": "rarity" },
+    { "id": "rarity-uncommon",  "folderPath": "rarity" },
+    { "id": "rarity-rare",      "folderPath": "rarity" },
+    { "id": "rarity-legendary", "folderPath": "rarity" }
+  ],
+  "icons": [],
+  "keywordFolders": [
+    "attack-windows",
+    "defense-windows",
+    "cancel",
+    "payloads",
+    "economy",
+    "sequence-slot",
+    "core"
+  ],
+  "tagFolders": [
+    "heroes",
+    "elements",
+    "rarity"
+  ],
+  "iconFolders": []
+}

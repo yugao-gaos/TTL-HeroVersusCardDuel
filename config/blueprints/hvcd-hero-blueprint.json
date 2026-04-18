@@ -1,0 +1,21 @@
+{
+  "id": "hvcd-hero-blueprint",
+  "kind": "hvcd.hero",
+  "label": "HVCD Hero Blueprint",
+  "data": {
+    "label": "HVCD Hero",
+    "tags": ["hvcd-hero"],
+    "props": {
+      "slug": "",
+      "description": "",
+      "baseHp": 30,
+      "baseRage": 0,
+      "baseBlock": 0,
+      "portraitPath": null,
+      "fullbodyPath": null,
+      "starterDeck": [],
+      "starterInventory": []
+    },
+    "customData": {}
+  }
+}

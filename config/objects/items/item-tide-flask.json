@@ -1,0 +1,32 @@
+{
+  "id": "item-tide-flask",
+  "blueprintId": "hvcd-item-blueprint",
+  "label": "Tide Flask",
+  "overrides": {
+    "label": "Tide Flask",
+    "props": {
+      "element": "water",
+      "rarity": "common",
+      "heroLock": "aqua",
+      "itemKind": "consumable",
+      "usages": 3,
+      "totalFrames": 1,
+      "attackWindows": {
+        "effect": {
+          "frames": [1, 1],
+          "effectId": "healOnBlockBreak",
+          "target": "self",
+          "duration": null
+        }
+      },
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null,
+      "effectPayload": { "healOnBlockBreak": 2 }
+    },
+    "customData": {
+      "b1-note": "Legacy reactive trigger 'onTakeHit'; combat-system.md §12 resolves items on dequeue. This item is authored as an instant effect; B2 to decide whether to keep legacy reactive trigger or convert to an on-commit active item.",
+      "b2-note": "OQ-35 resolved: reactive `trigger` prop removed. Player must now commit this flask to a sequence slot to heal — it is a standard active consumable. The `healOnBlockBreak` effectId is preserved as an instant heal; the block-break predicate is dropped. Effect registry implementation is up to later effect-authoring passes."
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "lightning-thunder-clap",
+  "blueprintId": "hvcd-card-blueprint",
+  "label": "Thunder Clap",
+  "overrides": {
+    "label": "Thunder Clap",
+    "props": {
+      "element": "lightning",
+      "rarity": "uncommon",
+      "heroId": "volt",
+      "totalFrames": 9,
+      "attackWindows": {
+        "hit": { "frames": [4, 5], "damage": 3, "hits": 1 }
+      },
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null
+    },
+    "customData": {
+      "b1-note": "Legacy rage_cost=1 is top-level; under new model rage is spent via variant or cancel-arm, not base card play. Flagged in MIGRATION-NOTES."
+    }
+  }
+}

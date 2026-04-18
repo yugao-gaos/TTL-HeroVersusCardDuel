@@ -1,16 +1,41 @@
 {
   "blueprintFiles": [
-    "config/blueprints/action-card-blueprint.json",
-    "config/blueprints/hex-tile-blueprint.json",
-    "config/blueprints/treasure-deck-blueprint.json",
-    "config/blueprints/supply-crate-blueprint.json",
-    "config/blueprints/worker-meeple-blueprint.json"
+    "config/blueprints/hvcd-hero-blueprint.json",
+    "config/blueprints/hvcd-card-blueprint.json",
+    "config/blueprints/hvcd-item-blueprint.json",
+    "config/blueprints/hero-blaze.json",
+    "config/blueprints/hero-aqua.json",
+    "config/blueprints/hero-terra.json",
+    "config/blueprints/hero-volt.json"
   ],
   "objectFiles": [
-    "config/objects/attack-action-card.json",
-    "config/objects/hex-forest-tile.json",
-    "config/objects/treasure-deck.json",
-    "config/objects/supply-crate.json",
-    "config/objects/worker-meeple.json"
+    "config/objects/heroes/hero-blaze.json",
+    "config/objects/heroes/hero-aqua.json",
+    "config/objects/heroes/hero-terra.json",
+    "config/objects/heroes/hero-volt.json",
+
+    "config/objects/cards/neutral-jab.json",
+    "config/objects/cards/neutral-heavy-punch.json",
+    "config/objects/cards/neutral-block-stance.json",
+    "config/objects/cards/neutral-sidestep.json",
+    "config/objects/cards/neutral-advance.json",
+    "config/objects/cards/neutral-rage-surge.json",
+    "config/objects/cards/fire-flame-jab.json",
+    "config/objects/cards/fire-fireball.json",
+    "config/objects/cards/fire-ignite-strike.json",
+    "config/objects/cards/water-water-veil.json",
+    "config/objects/cards/water-tidal-strike.json",
+    "config/objects/cards/water-counter-wave.json",
+    "config/objects/cards/earth-stone-guard.json",
+    "config/objects/cards/earth-boulder-smash.json",
+    "config/objects/cards/earth-quake-stomp.json",
+    "config/objects/cards/lightning-flicker-jab.json",
+    "config/objects/cards/lightning-chain-combo.json",
+    "config/objects/cards/lightning-thunder-clap.json",
+
+    "config/objects/items/item-ember-core.json",
+    "config/objects/items/item-tide-flask.json",
+    "config/objects/items/item-stone-bulwark.json",
+    "config/objects/items/item-arc-taser.json"
   ]
 }

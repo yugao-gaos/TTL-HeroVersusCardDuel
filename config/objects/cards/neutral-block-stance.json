@@ -1,0 +1,20 @@
+{
+  "id": "neutral-block-stance",
+  "blueprintId": "hvcd-card-blueprint",
+  "label": "Block Stance",
+  "overrides": {
+    "label": "Block Stance",
+    "props": {
+      "element": "neutral",
+      "rarity": "common",
+      "heroId": null,
+      "totalFrames": 8,
+      "attackWindows": {},
+      "defenseWindows": {
+        "block": { "frames": [1, 7] }
+      },
+      "cancelWindow": null,
+      "rageVariant": null
+    }
+  }
+}

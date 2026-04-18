@@ -1,0 +1,24 @@
+{
+  "id": "hvcd-card-blueprint",
+  "kind": "hvcd.card",
+  "label": "HVCD Card Blueprint",
+  "data": {
+    "label": "HVCD Card",
+    "tags": ["hvcd-card"],
+    "traits": {
+      "flippable": { "faceUp": false }
+    },
+    "props": {
+      "element": "neutral",
+      "rarity": "common",
+      "heroId": null,
+      "totalFrames": 1,
+      "attackWindows": {},
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null,
+      "artPath": null
+    },
+    "customData": {}
+  }
+}

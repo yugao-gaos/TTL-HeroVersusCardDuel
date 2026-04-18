@@ -1,0 +1,20 @@
+{
+  "id": "earth-stone-guard",
+  "blueprintId": "hvcd-card-blueprint",
+  "label": "Stone Guard",
+  "overrides": {
+    "label": "Stone Guard",
+    "props": {
+      "element": "earth",
+      "rarity": "common",
+      "heroId": "terra",
+      "totalFrames": 12,
+      "attackWindows": {},
+      "defenseWindows": {
+        "block": { "frames": [1, 11] }
+      },
+      "cancelWindow": null,
+      "rageVariant": null
+    }
+  }
+}

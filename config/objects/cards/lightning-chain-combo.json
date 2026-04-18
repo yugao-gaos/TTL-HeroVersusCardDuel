@@ -1,0 +1,20 @@
+{
+  "id": "lightning-chain-combo",
+  "blueprintId": "hvcd-card-blueprint",
+  "label": "Chain Combo",
+  "overrides": {
+    "label": "Chain Combo",
+    "props": {
+      "element": "lightning",
+      "rarity": "common",
+      "heroId": "volt",
+      "totalFrames": 5,
+      "attackWindows": {
+        "hit": { "frames": [2, 3], "damage": 1, "hits": 1 }
+      },
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null
+    }
+  }
+}

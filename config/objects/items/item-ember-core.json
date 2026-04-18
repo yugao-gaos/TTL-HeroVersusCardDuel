@@ -1,0 +1,32 @@
+{
+  "id": "item-ember-core",
+  "blueprintId": "hvcd-item-blueprint",
+  "label": "Ember Core",
+  "overrides": {
+    "label": "Ember Core",
+    "props": {
+      "element": "fire",
+      "rarity": "common",
+      "heroLock": "blaze",
+      "itemKind": "passive",
+      "usages": null,
+      "totalFrames": 1,
+      "attackWindows": {
+        "effect": {
+          "frames": [1, 1],
+          "effectId": "bonusDamageFirstHit",
+          "target": "self",
+          "duration": null
+        }
+      },
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null,
+      "effectPayload": { "bonusDamageFirstHit": 1 }
+    },
+    "customData": {
+      "b1-note": "Legacy passive trigger 'onPlayCard' doesn't match combat-system.md §12 (all items resolve on dequeue). Modeled as instant effect + 1-frame activation; B2 to confirm whether passive items belong in the inventory slot model or in a per-run 'always-on' effect layer.",
+      "b2-note": "OQ-35 resolved: reactive `trigger` prop removed. `bonusDamageFirstHit` is now a dequeue-triggered instant effect — committing the item to a sequence slot applies the bonus for the next hit that lands. Effect implementation added piecemeal to scripts/effects/ when authoring is ready."
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "neutral-heavy-punch",
+  "blueprintId": "hvcd-card-blueprint",
+  "label": "Heavy Punch",
+  "overrides": {
+    "label": "Heavy Punch",
+    "props": {
+      "element": "neutral",
+      "rarity": "common",
+      "heroId": null,
+      "totalFrames": 12,
+      "attackWindows": {
+        "hit": { "frames": [6, 8], "damage": 3, "hits": 1 }
+      },
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null
+    }
+  }
+}

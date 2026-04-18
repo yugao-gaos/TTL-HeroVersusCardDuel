@@ -1,0 +1,30 @@
+{
+  "id": "hero-blaze-blueprint",
+  "kind": "hvcd.hero",
+  "label": "Blaze",
+  "data": {
+    "label": "Blaze",
+    "tags": ["hvcd-hero", "hvcd-hero-blaze"],
+    "props": {
+      "slug": "blaze",
+      "description": "Aggressive fire fighter. Burns openings into any defense.",
+      "baseHp": 30,
+      "baseRage": 0,
+      "baseBlock": 0,
+      "portraitPath": null,
+      "fullbodyPath": null,
+      "starterDeck": [
+        { "cardId": "neutral-jab",          "count": 2 },
+        { "cardId": "neutral-heavy-punch",  "count": 1 },
+        { "cardId": "neutral-block-stance", "count": 2 },
+        { "cardId": "neutral-sidestep",     "count": 1 },
+        { "cardId": "neutral-advance",      "count": 1 },
+        { "cardId": "fire-flame-jab",       "count": 2 },
+        { "cardId": "fire-fireball",        "count": 1 },
+        { "cardId": "fire-ignite-strike",   "count": 2 }
+      ],
+      "starterInventory": ["item-ember-core"]
+    },
+    "customData": {}
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "id": "item-stone-bulwark",
+  "blueprintId": "hvcd-item-blueprint",
+  "label": "Stone Bulwark",
+  "overrides": {
+    "label": "Stone Bulwark",
+    "props": {
+      "element": "earth",
+      "rarity": "common",
+      "heroLock": "terra",
+      "itemKind": "passive",
+      "usages": null,
+      "totalFrames": 1,
+      "attackWindows": {
+        "effect": {
+          "frames": [1, 1],
+          "effectId": "bonusBlockTokens",
+          "target": "self",
+          "duration": null
+        }
+      },
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null,
+      "effectPayload": { "bonusBlockTokens": 2 }
+    },
+    "customData": {
+      "b1-note": "Legacy passive 'onRoundStart' grants +2 block pool. In the combat-system.md §2 continuity model, block pool tops to 6 between showdowns. Two modeling options for B2: (a) Terra starts with baseBlock=2 so effective pool is 8, (b) bulwark grants an instant effect that refunds +2 at each commit phase. Current hero blueprint uses (a) via `baseBlock: 2`.",
+      "b2-note": "OQ-35 resolved: reactive `trigger` prop removed. Item now resolves on dequeue as any other card/item. Item is effectively inert under §12 dequeue-only model given Terra's baseBlock already covers the +2 pool; kept as a named inventory slot so the hero's starter inventory descriptor still matches HVCD."
+    }
+  }
+}

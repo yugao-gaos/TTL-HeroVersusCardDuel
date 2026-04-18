@@ -1,0 +1,30 @@
+{
+  "id": "hero-aqua-blueprint",
+  "kind": "hvcd.hero",
+  "label": "Aqua",
+  "data": {
+    "label": "Aqua",
+    "tags": ["hvcd-hero", "hvcd-hero-aqua"],
+    "props": {
+      "slug": "aqua",
+      "description": "Flowing counter-fighter. Reads attacks and turns them back.",
+      "baseHp": 30,
+      "baseRage": 0,
+      "baseBlock": 0,
+      "portraitPath": null,
+      "fullbodyPath": null,
+      "starterDeck": [
+        { "cardId": "neutral-jab",          "count": 2 },
+        { "cardId": "neutral-heavy-punch",  "count": 1 },
+        { "cardId": "neutral-block-stance", "count": 2 },
+        { "cardId": "neutral-sidestep",     "count": 1 },
+        { "cardId": "neutral-advance",      "count": 1 },
+        { "cardId": "water-water-veil",     "count": 2 },
+        { "cardId": "water-tidal-strike",   "count": 1 },
+        { "cardId": "water-counter-wave",   "count": 2 }
+      ],
+      "starterInventory": ["item-tide-flask"]
+    },
+    "customData": {}
+  }
+}

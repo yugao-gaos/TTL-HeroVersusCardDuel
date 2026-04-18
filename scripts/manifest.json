@@ -1,11 +1,16 @@
 {
   "kindScripts": [
-    "kinds/meeple-kind"
+    "kinds/card",
+    "kinds/hero",
+    "kinds/item",
+    "kinds/token"
   ],
   "traitScripts": [
-    "traits/stackable-trait"
+    "traits/rage-cost",
+    "traits/frame-cost",
+    "traits/variant-override",
+    "traits/cancel-window",
+    "traits/owner-only-visible"
   ],
-  "kindEditorScripts": [
-    "kinds/meeple-kind.editor"
-  ]
+  "kindEditorScripts": []
 }

@@ -1,0 +1,25 @@
+{
+  "id": "earth-boulder-smash",
+  "blueprintId": "hvcd-card-blueprint",
+  "label": "Boulder Smash",
+  "overrides": {
+    "label": "Boulder Smash",
+    "props": {
+      "element": "earth",
+      "rarity": "uncommon",
+      "heroId": "terra",
+      "totalFrames": 15,
+      "attackWindows": {
+        "hit": {
+          "frames": [8, 11],
+          "damage": 4,
+          "hits": 1,
+          "defenseBreaker": true
+        }
+      },
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null
+    }
+  }
+}

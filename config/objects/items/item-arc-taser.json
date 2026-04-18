@@ -1,0 +1,28 @@
+{
+  "id": "item-arc-taser",
+  "blueprintId": "hvcd-item-blueprint",
+  "label": "Arc Taser",
+  "overrides": {
+    "label": "Arc Taser",
+    "props": {
+      "element": "lightning",
+      "rarity": "common",
+      "heroLock": "volt",
+      "itemKind": "consumable",
+      "usages": 2,
+      "totalFrames": 1,
+      "attackWindows": {
+        "effect": {
+          "frames": [1, 1],
+          "effectId": "interruptNextOpponentCard",
+          "target": "opponent",
+          "duration": null
+        }
+      },
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null,
+      "effectPayload": { "interruptNextOpponentCard": true }
+    }
+  }
+}

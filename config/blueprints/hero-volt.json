@@ -1,0 +1,30 @@
+{
+  "id": "hero-volt-blueprint",
+  "kind": "hvcd.hero",
+  "label": "Volt",
+  "data": {
+    "label": "Volt",
+    "tags": ["hvcd-hero", "hvcd-hero-volt"],
+    "props": {
+      "slug": "volt",
+      "description": "Quick striker. Chains fast hits faster than you can react.",
+      "baseHp": 28,
+      "baseRage": 0,
+      "baseBlock": 0,
+      "portraitPath": null,
+      "fullbodyPath": null,
+      "starterDeck": [
+        { "cardId": "neutral-jab",              "count": 1 },
+        { "cardId": "neutral-heavy-punch",      "count": 1 },
+        { "cardId": "neutral-block-stance",     "count": 2 },
+        { "cardId": "neutral-sidestep",         "count": 2 },
+        { "cardId": "neutral-advance",          "count": 1 },
+        { "cardId": "lightning-flicker-jab",    "count": 2 },
+        { "cardId": "lightning-chain-combo",    "count": 2 },
+        { "cardId": "lightning-thunder-clap",   "count": 1 }
+      ],
+      "starterInventory": ["item-arc-taser"]
+    },
+    "customData": {}
+  }
+}

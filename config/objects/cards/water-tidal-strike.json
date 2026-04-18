@@ -1,0 +1,20 @@
+{
+  "id": "water-tidal-strike",
+  "blueprintId": "hvcd-card-blueprint",
+  "label": "Tidal Strike",
+  "overrides": {
+    "label": "Tidal Strike",
+    "props": {
+      "element": "water",
+      "rarity": "uncommon",
+      "heroId": "aqua",
+      "totalFrames": 13,
+      "attackWindows": {
+        "hit": { "frames": [7, 10], "damage": 2, "hits": 1 }
+      },
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null
+    }
+  }
+}

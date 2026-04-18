@@ -1,0 +1,28 @@
+{
+  "id": "fire-fireball",
+  "blueprintId": "hvcd-card-blueprint",
+  "label": "Fireball",
+  "overrides": {
+    "label": "Fireball",
+    "props": {
+      "element": "fire",
+      "rarity": "uncommon",
+      "heroId": "blaze",
+      "totalFrames": 10,
+      "attackWindows": {
+        "projectile": {
+          "frames": [5, 6],
+          "damage": 2,
+          "hits": 1,
+          "travelFrames": 8
+        }
+      },
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null
+    },
+    "customData": {
+      "b1-note": "Legacy homing=true; under new model projectile is intrinsically homing (no flag needed). travelFrames inferred at 8 (medium tier). Flagged in MIGRATION-NOTES."
+    }
+  }
+}

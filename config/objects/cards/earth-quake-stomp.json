@@ -1,0 +1,20 @@
+{
+  "id": "earth-quake-stomp",
+  "blueprintId": "hvcd-card-blueprint",
+  "label": "Quake Stomp",
+  "overrides": {
+    "label": "Quake Stomp",
+    "props": {
+      "element": "earth",
+      "rarity": "common",
+      "heroId": "terra",
+      "totalFrames": 10,
+      "attackWindows": {
+        "hit": { "frames": [4, 7], "damage": 2, "hits": 1 }
+      },
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null
+    }
+  }
+}

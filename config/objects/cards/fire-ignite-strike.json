@@ -1,0 +1,25 @@
+{
+  "id": "fire-ignite-strike",
+  "blueprintId": "hvcd-card-blueprint",
+  "label": "Ignite Strike",
+  "overrides": {
+    "label": "Ignite Strike",
+    "props": {
+      "element": "fire",
+      "rarity": "uncommon",
+      "heroId": "blaze",
+      "totalFrames": 11,
+      "attackWindows": {
+        "hit": {
+          "frames": [5, 7],
+          "damage": 3,
+          "hits": 1,
+          "defenseBreaker": true
+        }
+      },
+      "defenseWindows": {},
+      "cancelWindow": null,
+      "rageVariant": null
+    }
+  }
+}

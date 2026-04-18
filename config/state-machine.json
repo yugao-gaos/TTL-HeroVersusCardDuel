@@ -1,84 +1,99 @@
 {
-  "initialStateId": "lobby",
+  "initialStateId": "match-setup",
   "states": [
     {
-      "id": "lobby",
-      "label": "Lobby",
-      "position": {
-        "x": 80,
-        "y": 120
-      },
-      "scriptId": "states/lobby"
+      "id": "match-setup",
+      "label": "Match Setup",
+      "position": { "x": 80, "y": 120 },
+      "scriptId": "states/match-setup"
     },
     {
-      "id": "setup",
-      "label": "Setup",
-      "position": {
-        "x": 320,
-        "y": 120
-      },
-      "scriptId": "states/setup"
+      "id": "commit",
+      "label": "Commit",
+      "position": { "x": 320, "y": 120 },
+      "scriptId": "states/commit"
     },
     {
-      "id": "turn",
-      "label": "Turn",
-      "position": {
-        "x": 560,
-        "y": 120
-      },
-      "scriptId": "states/turn"
+      "id": "reveal",
+      "label": "Reveal",
+      "position": { "x": 560, "y": 120 },
+      "scriptId": "states/reveal"
     },
     {
-      "id": "end",
-      "label": "End",
-      "position": {
-        "x": 800,
-        "y": 120
-      },
-      "scriptId": "states/end"
+      "id": "showdown",
+      "label": "Showdown",
+      "position": { "x": 800, "y": 120 },
+      "scriptId": "states/showdown"
+    },
+    {
+      "id": "pause-or-end",
+      "label": "Pause or End",
+      "position": { "x": 1040, "y": 120 },
+      "scriptId": "states/pause-or-end"
+    },
+    {
+      "id": "match-end",
+      "label": "Match End",
+      "position": { "x": 1280, "y": 120 },
+      "scriptId": "states/match-end"
     }
   ],
   "transitions": [
     {
-      "id": "lobby-start",
-      "fromStateId": "lobby",
-      "toStateId": "setup",
-      "label": "Start Game",
-      "trigger": {
-        "type": "input",
-        "inputType": "start_game"
-      },
-      "scriptId": "transitions/lobby-start"
+      "id": "setup-to-commit",
+      "fromStateId": "match-setup",
+      "toStateId": "commit",
+      "label": "Start First Turn",
+      "trigger": { "type": "auto" },
+      "scriptId": "transitions/setup-to-commit"
     },
     {
-      "id": "setup-turn",
-      "fromStateId": "setup",
-      "toStateId": "turn",
-      "label": "Finish Setup",
-      "trigger": {
-        "type": "auto"
-      }
+      "id": "commit-to-reveal",
+      "fromStateId": "commit",
+      "toStateId": "reveal",
+      "label": "Both Players Locked In",
+      "trigger": { "type": "input", "inputType": "commit_locked_in" },
+      "scriptId": "transitions/commit-to-reveal"
     },
     {
-      "id": "turn-end-turn",
-      "fromStateId": "turn",
-      "toStateId": "turn",
-      "label": "End Turn",
-      "trigger": {
-        "type": "input",
-        "inputType": "end_turn"
-      },
-      "scriptId": "transitions/turn-end"
+      "id": "reveal-to-showdown",
+      "fromStateId": "reveal",
+      "toStateId": "showdown",
+      "label": "Frame Totals Match",
+      "trigger": { "type": "auto" },
+      "scriptId": "transitions/reveal-to-showdown"
     },
     {
-      "id": "turn-winner",
-      "fromStateId": "turn",
-      "toStateId": "end",
-      "label": "Winner Declared",
-      "trigger": {
-        "type": "auto"
-      },
-      "scriptId": "transitions/turn-winner"
+      "id": "reveal-to-commit",
+      "fromStateId": "reveal",
+      "toStateId": "commit",
+      "label": "Frame Totals Unequal",
+      "trigger": { "type": "input", "inputType": "reveal_mismatch" },
+      "scriptId": "transitions/reveal-to-commit"
+    },
+    {
+      "id": "showdown-to-pause",
+      "fromStateId": "showdown",
+      "toStateId": "pause-or-end",
+      "label": "Showdown Paused",
+      "trigger": { "type": "input", "inputType": "showdown_paused" },
+      "scriptId": "transitions/showdown-to-pause"
+    },
+    {
+      "id": "pause-to-commit",
+      "fromStateId": "pause-or-end",
+      "toStateId": "commit",
+      "label": "Continue (Next Turn)",
+      "trigger": { "type": "auto" },
+      "scriptId": "transitions/pause-to-commit"
+    },
+    {
+      "id": "pause-to-end",
+      "fromStateId": "pause-or-end",
+      "toStateId": "match-end",
+      "label": "KO / Match End",
+      "trigger": { "type": "input", "inputType": "match_ended" },
+      "scriptId": "transitions/pause-to-end"
     }
   ]
 }

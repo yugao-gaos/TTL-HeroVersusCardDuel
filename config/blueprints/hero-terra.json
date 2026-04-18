@@ -1,0 +1,30 @@
+{
+  "id": "hero-terra-blueprint",
+  "kind": "hvcd.hero",
+  "label": "Terra",
+  "data": {
+    "label": "Terra",
+    "tags": ["hvcd-hero", "hvcd-hero-terra"],
+    "props": {
+      "slug": "terra",
+      "description": "Stone-wall defender. Outlasts opponents behind heavy guard.",
+      "baseHp": 34,
+      "baseRage": 0,
+      "baseBlock": 2,
+      "portraitPath": null,
+      "fullbodyPath": null,
+      "starterDeck": [
+        { "cardId": "neutral-jab",          "count": 2 },
+        { "cardId": "neutral-heavy-punch",  "count": 1 },
+        { "cardId": "neutral-block-stance", "count": 1 },
+        { "cardId": "neutral-sidestep",     "count": 1 },
+        { "cardId": "neutral-advance",      "count": 1 },
+        { "cardId": "earth-stone-guard",    "count": 3 },
+        { "cardId": "earth-boulder-smash",  "count": 1 },
+        { "cardId": "earth-quake-stomp",    "count": 2 }
+      ],
+      "starterInventory": ["item-stone-bulwark"]
+    },
+    "customData": {}
+  }
+}
