@@ -5,7 +5,7 @@
  * projectile-arrived event. Canvas-drawn, not video — cheap.
  */
 
-import { memo, useMemo } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
 import { useEnqueueDraw } from '../canvasRuntime';
 import type { SeatId } from '../../resolver/types';
 

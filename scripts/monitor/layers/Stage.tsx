@@ -5,7 +5,7 @@
  * asset-authoring wave as per-stage image/video plates.
  */
 
-import { memo, useMemo } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
 import { useEnqueueDraw } from '../canvasRuntime';
 
 export interface StageProps {

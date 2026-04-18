@@ -4,7 +4,7 @@
  * attacker spent rage/connect-credit to cut out of their own startup.
  */
 
-import { memo, useMemo } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
 import { useEnqueueDraw } from '../canvasRuntime';
 import type { SeatId } from '../../resolver/types';
 

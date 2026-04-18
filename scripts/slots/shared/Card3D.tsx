@@ -6,8 +6,8 @@
 // card-face layering lives in cardFaceLayers.ts (TabletopLabs reference); HVCD
 // will plug into that once A1's module-api surface re-exports it.
 
-import { memo, useMemo } from '../../_stub/moduleApi';
-import { Color } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
+import { Color } from '@tabletoplabs/module-api';
 
 export interface Card3DProps {
   position: [number, number, number];

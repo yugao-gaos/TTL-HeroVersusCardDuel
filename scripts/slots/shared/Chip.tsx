@@ -4,8 +4,8 @@
 // The color gradient green -> amber -> red on HP is handled by the ChipTray
 // impl choosing per-chip colors; this primitive just renders what it's given.
 
-import { memo, useMemo } from '../../_stub/moduleApi';
-import { Color } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
+import { Color } from '@tabletoplabs/module-api';
 
 export interface ChipProps {
   position: [number, number, number];

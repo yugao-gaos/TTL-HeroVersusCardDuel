@@ -6,7 +6,7 @@
  * with whatever the resolver said at `currentFrame`.
  */
 
-import { memo, useMemo } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
 import { useEnqueueDraw } from '../canvasRuntime';
 import { selectFrameReadout } from '../eventSelectors';
 import type { ResolverEvent } from '../../resolver/types';

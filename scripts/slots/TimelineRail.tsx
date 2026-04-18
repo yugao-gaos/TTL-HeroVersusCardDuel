@@ -10,9 +10,9 @@
 // Projectile airspace and parked-source tethers live in ProjectileLayer and
 // SideArea; this slot only handles what physically sits on the rail surface.
 
-import { memo, useMemo, useRef, useFrame } from '../_stub/moduleApi';
-import type { RendererSlotImpl, SessionSlotProps } from '../_stub/moduleApi';
-import type { Group } from '../_stub/moduleApi';
+import { memo, useMemo, useRef, useFrame } from '@tabletoplabs/module-api';
+import type { RendererSlotImpl, SessionSlotProps } from '@tabletoplabs/module-api';
+import type { Group } from '@tabletoplabs/module-api';
 import {
   RAIL_WIDTH,
   RAIL_DEPTH_RECESS,

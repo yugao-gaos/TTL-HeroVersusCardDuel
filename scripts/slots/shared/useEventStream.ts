@@ -4,8 +4,8 @@
 // events into local state (chip placements, projectile flights, etc.) without
 // re-subscribing on every render.
 
-import { useEffect, useRef, useState } from '../../_stub/moduleApi';
-import type { ModuleEventsApi } from '../../_stub/moduleApi';
+import { useEffect, useRef, useState } from '@tabletoplabs/module-api';
+import type { ModuleEventsApi } from '@tabletoplabs/module-api';
 
 /**
  * Subscribe to a stream and derive a value from it via a reducer.

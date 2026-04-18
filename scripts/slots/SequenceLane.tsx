@@ -10,8 +10,8 @@
 // Layer-1-return-null pattern. Hidden fields are simply absent from the event
 // payload this slot consumes.
 
-import { memo, useMemo } from '../_stub/moduleApi';
-import type { RendererSlotImpl, PerSeatSlotProps } from '../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
+import type { RendererSlotImpl, PerSeatSlotProps } from '@tabletoplabs/module-api';
 import {
   SEQ_LANE_NEAR_Z,
   SEQ_LANE_FAR_Z,

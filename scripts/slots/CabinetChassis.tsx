@@ -8,9 +8,9 @@
 // frame around the monitor mount, and a simple rim at the near edge.
 // Final asset: commissioned GLB + PBR materials, loaded via assets.resolveAssetUrl.
 
-import { memo, useMemo } from '../_stub/moduleApi';
-import { Color } from '../_stub/moduleApi';
-import type { RendererSlotImpl, SessionSlotProps } from '../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
+import { Color } from '@tabletoplabs/module-api';
+import type { RendererSlotImpl, SessionSlotProps } from '@tabletoplabs/module-api';
 import {
   TABLE_HALF_X,
   TABLE_HALF_Z,

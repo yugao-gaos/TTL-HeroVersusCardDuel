@@ -13,9 +13,9 @@
 //   - renderPhase: 'event' — the mesh itself only re-renders on monitor-frame
 //     events routed through the event bus; useEffect installs the texture once.
 
-import { useEffect, useMemo, useRef, memo } from '../_stub/moduleApi';
-import type { RendererSlotImpl, SessionSlotProps } from '../_stub/moduleApi';
-import { CanvasTexture, SRGBColorSpace } from '../_stub/moduleApi';
+import { useEffect, useMemo, useRef, memo } from '@tabletoplabs/module-api';
+import type { RendererSlotImpl, SessionSlotProps } from '@tabletoplabs/module-api';
+import { CanvasTexture, SRGBColorSpace } from '@tabletoplabs/module-api';
 import { MONITOR_POS, MONITOR_SIZE } from './shared/layout';
 
 const MONITOR_INTERNAL_W = 720;

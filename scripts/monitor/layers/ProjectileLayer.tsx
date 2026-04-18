@@ -11,7 +11,7 @@
  * Clash burst is a second component, emitted when two projectiles meet.
  */
 
-import { memo, useMemo } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
 import { useEnqueueDraw } from '../canvasRuntime';
 import type { SeatId } from '../../resolver/types';
 

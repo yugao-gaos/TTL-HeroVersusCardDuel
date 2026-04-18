@@ -5,7 +5,7 @@
  * connects. Paired with a FighterStagger on the attacker.
  */
 
-import { memo, useMemo } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
 import { useEnqueueDraw } from '../canvasRuntime';
 import type { SeatId } from '../../resolver/types';
 

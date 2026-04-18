@@ -14,8 +14,8 @@
 // stream — events fed into state include projectile arrival frames and
 // effect-end frames so tethers know where to point.
 
-import { memo, useMemo } from '../_stub/moduleApi';
-import type { RendererSlotImpl, PerSeatSlotProps } from '../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
+import type { RendererSlotImpl, PerSeatSlotProps } from '@tabletoplabs/module-api';
 import {
   seatCenterX,
   SIDE_AREA_LOCAL_X_OFFSET,

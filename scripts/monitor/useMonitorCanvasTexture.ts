@@ -41,8 +41,8 @@
  *     };
  */
 
-import { useEffect, useMemo, useRef } from '../_stub/moduleApi';
-import { CanvasTexture, SRGBColorSpace } from '../_stub/moduleApi';
+import { useEffect, useMemo, useRef } from '@tabletoplabs/module-api';
+import { CanvasTexture, SRGBColorSpace } from '@tabletoplabs/module-api';
 import type { ResolverEvent } from '../resolver/types';
 import {
   createDrawQueue,

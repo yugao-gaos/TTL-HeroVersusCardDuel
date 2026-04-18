@@ -10,7 +10,7 @@
  * This layer is always mounted; its draw fn is a no-op when `scale >= 1`.
  */
 
-import { memo, useMemo } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
 import { useEnqueueDraw } from '../canvasRuntime';
 import { selectHitStop } from '../eventSelectors';
 import type { ResolverEvent } from '../../resolver/types';

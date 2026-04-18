@@ -60,13 +60,13 @@
  * authoring wave.
  */
 
-import { memo, useMemo, useRef } from '../_stub/moduleApi';
-import type { ComponentType, ReactNode } from '../_stub/moduleApi';
+import { memo, useMemo, useRef } from '@tabletoplabs/module-api';
+import type { ComponentType, ReactNode } from '@tabletoplabs/module-api';
 import {
   Composition,
   Sequence,
   useCurrentFrame,
-} from '../_stub/remotionApi';
+} from '@tabletoplabs/module-api/remotion';
 import type { ResolverEvent, SeatId } from '../resolver/types';
 import {
   DrawQueueCtx,

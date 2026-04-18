@@ -9,7 +9,7 @@
  * TODO: real asset per fighter x move manifest (alpha-WebM idle loop).
  */
 
-import { memo, useMemo } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
 import { useEnqueueDraw } from '../canvasRuntime';
 import type { SeatId } from '../../resolver/types';
 

@@ -4,8 +4,8 @@
 // attack kinds, round for defense, low-profile for cancel, emissive for effect.
 // Wave-2 placeholder: a colored cylinder with a small glyph cap; polish comes later.
 
-import { memo, useMemo } from '../../_stub/moduleApi';
-import { Color } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
+import { Color } from '@tabletoplabs/module-api';
 
 type TokenKind =
   | 'hit' | 'grab' | 'projectile' | 'parry' | 'effect'

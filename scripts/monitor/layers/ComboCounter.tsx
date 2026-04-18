@@ -5,7 +5,7 @@
  * via the selector so it's resilient to event reordering.
  */
 
-import { memo, useMemo } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
 import { useEnqueueDraw } from '../canvasRuntime';
 import { selectComboState } from '../eventSelectors';
 import type { ResolverEvent } from '../../resolver/types';

@@ -16,8 +16,8 @@
 //     later polish wave.
 //   - Pool chips dim on block-pool-consumed, refill on block-pool-refilled.
 
-import { memo, useMemo } from '../_stub/moduleApi';
-import type { RendererSlotImpl, PerSeatSlotProps } from '../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
+import type { RendererSlotImpl, PerSeatSlotProps } from '@tabletoplabs/module-api';
 import {
   HP_TRAY_LOCAL,
   RAGE_TRAY_LOCAL,

@@ -5,7 +5,7 @@
  * TODO: real asset per fighter x hit-size manifest.
  */
 
-import { memo, useMemo } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
 import { useEnqueueDraw } from '../canvasRuntime';
 import type { SeatId } from '../../resolver/types';
 import type { HitSize } from '../eventSelectors';

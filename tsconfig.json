@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "baseUrl": ".",
+    "paths": {
+      "@tabletoplabs/module-api": ["scripts/_stub/moduleApi"],
+      "@tabletoplabs/module-api/remotion": ["scripts/_stub/remotionApi"]
+    },
+    "types": ["node"]
+  },
+  "include": [
+    "scripts/**/*.ts",
+    "scripts/**/*.tsx",
+    "tests/**/*.ts",
+    "vite.config.ts"
+  ]
+}

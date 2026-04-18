@@ -12,8 +12,8 @@
 // usages aren't broadcast; Wave-2 reads through world.readSeatData which is
 // the same surface A7 will keep.
 
-import { memo, useMemo } from '../_stub/moduleApi';
-import type { RendererSlotImpl, PerSeatSlotProps } from '../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
+import type { RendererSlotImpl, PerSeatSlotProps } from '@tabletoplabs/module-api';
 import { seatCenterX, RACK_LOCAL, RACK_TILT_DEG, TABLE_HALF_Z } from './shared/layout';
 import { Card3D } from './shared/Card3D';
 import { useEventStream } from './shared/useEventStream';

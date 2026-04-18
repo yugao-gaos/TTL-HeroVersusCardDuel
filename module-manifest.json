@@ -1,0 +1,67 @@
+{
+  "manifestVersion": 1,
+  "moduleId": "hvcd",
+  "name": "HeroVersusCardDuel",
+  "version": "0.3.0",
+  "description": "Timeline-based 1v1 fighting card game. Port of HVCD onto the TabletopLabs runtime.",
+  "platform": {
+    "min": ">=0.0.0"
+  },
+  "contractsCommitSha": "fd5ba81",
+  "entrypoints": {
+    "bundle": "https://raw.githubusercontent.com/yugao-gaos/TTL-HeroVersusCardDuel/main/dist/module-bundle.js",
+    "remotionComposition": "scripts/monitor/MonitorComposition.tsx"
+  },
+  "seats": {
+    "ids": ["p1", "p2"],
+    "minPlayers": 2,
+    "maxPlayers": 2,
+    "spectators": "allowed"
+  },
+  "declarations": {
+    "kinds": ["hvcd.card", "hvcd.hero", "hvcd.item", "hvcd.token"],
+    "traits": [
+      "hvcd.rage-cost",
+      "hvcd.frame-cost",
+      "hvcd.variant-override",
+      "hvcd.cancel-window",
+      "hvcd.owner-only-visible"
+    ],
+    "stateMachinePath": "config/state-machine.json",
+    "rendererSlots": [
+      { "slotId": "hvcd.cabinet", "renderPhase": "tick", "privacy": "public" },
+      { "slotId": "hvcd.cabinetChassis", "renderPhase": "tick", "privacy": "public" },
+      { "slotId": "hvcd.timelineRail", "renderPhase": "frame", "privacy": "public" },
+      { "slotId": "hvcd.sequenceLane", "kind": "hvcd.sequence", "renderPhase": "tick", "privacy": "public" },
+      { "slotId": "hvcd.sequenceLanes", "renderPhase": "tick", "privacy": "public" },
+      { "slotId": "hvcd.chipTray", "kind": "hvcd.counterTray", "renderPhase": "event", "privacy": "public" },
+      { "slotId": "hvcd.chipTrays", "renderPhase": "event", "privacy": "public" },
+      { "slotId": "hvcd.sideArea", "renderPhase": "tick", "privacy": "public" },
+      { "slotId": "hvcd.inventoryRack", "renderPhase": "tick", "privacy": "owner-only" },
+      { "slotId": "hvcd.monitorMesh", "renderPhase": "event", "privacy": "public" },
+      { "slotId": "hvcd.projectileLayer", "renderPhase": "frame", "privacy": "public" },
+      { "slotId": "hvcd.avatarRig", "renderPhase": "frame", "privacy": "public" }
+    ],
+    "eventStreams": [
+      { "id": "resolverEvents", "schema": "ResolverEvent@v1", "delivery": "both" },
+      { "id": "monitorEvents", "schema": "MonitorEvent@v1", "delivery": "both" }
+    ]
+  },
+  "content": {
+    "assetResolution": "repo-relative",
+    "assetManifestPath": "assets/manifest.json"
+  },
+  "resolver": {
+    "mode": "deterministic",
+    "tickRateHz": 60
+  },
+  "results": {
+    "schema": "HvcdMatchResult@v1",
+    "replayFormat": {
+      "mime": "application/x.hvcd-replay",
+      "extension": "hvcdreplay",
+      "compressed": true
+    }
+  },
+  "license": "proprietary"
+}

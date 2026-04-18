@@ -3,7 +3,7 @@
 // Rendered as a flat line of small dark dashes across the rail. Wave-2
 // placeholder; final asset has ink-printed tick marks baked into the rail texture.
 
-import { memo, useMemo } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
 import { RAIL_NEAR_Z, RAIL_WIDTH, frameToRailZ, RAIL_FRAME_CAPACITY } from './layout';
 
 export interface FrameTicksProps {

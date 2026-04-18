@@ -34,8 +34,8 @@
  * wall.
  */
 
-import { createContext, useContext, useEffect, useRef } from '../_stub/moduleApi';
-import type { RefObject, ReactNode } from '../_stub/moduleApi';
+import { createContext, useContext, useEffect, useRef } from '@tabletoplabs/module-api';
+import type { RefObject, ReactNode } from '@tabletoplabs/module-api';
 
 // ---------------------------------------------------------------------------
 // The shared draw queue

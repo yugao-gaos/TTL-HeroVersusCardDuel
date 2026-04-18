@@ -4,9 +4,9 @@
 // Wave-2 placeholder: a straight drei <Line>; final behavior is a bezier arc
 // that rises up over the rail.
 
-import { memo, useMemo } from '../../_stub/moduleApi';
-import { Line } from '../../_stub/moduleApi';
-import { Vector3 } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
+import { Line } from '@tabletoplabs/module-api';
+import { Vector3 } from '@tabletoplabs/module-api';
 
 export interface TetherProps {
   from: [number, number, number];

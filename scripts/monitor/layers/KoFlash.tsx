@@ -4,7 +4,7 @@
  * Fullscreen white burst + "K.O.!" title stamp over the losing seat.
  */
 
-import { memo, useMemo } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
 import { useEnqueueDraw } from '../canvasRuntime';
 import type { SeatId } from '../../resolver/types';
 

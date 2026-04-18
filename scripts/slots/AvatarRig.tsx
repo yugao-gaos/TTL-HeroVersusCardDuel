@@ -13,9 +13,9 @@
 // Privacy: both avatars are public (ui §15 — avatar emotes visible to both).
 // No isViewerSeat gating.
 
-import { memo, useRef, useMemo, useFrame } from '../_stub/moduleApi';
-import type { RendererSlotImpl, PerSeatSlotProps } from '../_stub/moduleApi';
-import type { Group } from '../_stub/moduleApi';
+import { memo, useRef, useMemo, useFrame } from '@tabletoplabs/module-api';
+import type { RendererSlotImpl, PerSeatSlotProps } from '@tabletoplabs/module-api';
+import type { Group } from '@tabletoplabs/module-api';
 import { seatCenterX, AVATAR_LOCAL, TABLE_HALF_Z } from './shared/layout';
 import { useEventStream } from './shared/useEventStream';
 

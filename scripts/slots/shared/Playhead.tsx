@@ -4,8 +4,8 @@
 // Sweep animation lives in the TimelineRail impl via useFrame; this component
 // just renders where it's told.
 
-import { memo, useMemo } from '../../_stub/moduleApi';
-import { Color } from '../../_stub/moduleApi';
+import { memo, useMemo } from '@tabletoplabs/module-api';
+import { Color } from '@tabletoplabs/module-api';
 
 export interface PlayheadProps {
   position: [number, number, number];

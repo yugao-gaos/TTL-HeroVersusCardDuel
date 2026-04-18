@@ -11,9 +11,9 @@
 // to parked source cards are drawn by SideArea, not here (they read
 // projectilePositions from their own reduced state — same event stream).
 
-import { memo, useRef, useMemo, useFrame } from '../_stub/moduleApi';
-import type { RendererSlotImpl, SessionSlotProps } from '../_stub/moduleApi';
-import type { Group } from '../_stub/moduleApi';
+import { memo, useRef, useMemo, useFrame } from '@tabletoplabs/module-api';
+import type { RendererSlotImpl, SessionSlotProps } from '@tabletoplabs/module-api';
+import type { Group } from '@tabletoplabs/module-api';
 import {
   frameToRailZ,
   seatLaneX,

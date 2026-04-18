@@ -9,7 +9,7 @@
 //
 // This file is the default export the platform invokes after loading the bundle.
 
-import type { ModuleApi } from '../_stub/moduleApi';
+import type { ModuleApi } from '@tabletoplabs/module-api';
 import { CabinetChassis } from '../slots/CabinetChassis';
 import { TimelineRail } from '../slots/TimelineRail';
 import { SequenceLane } from '../slots/SequenceLane';
