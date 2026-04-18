@@ -28,7 +28,7 @@ import type {
   ShowdownRunResult,
   TimelineToken,
 } from './types.ts';
-import { otherSeat, seatIdOf } from './types.ts';
+import { otherSeat, seatIdOf, tokenLastFrame } from './types.ts';
 
 const MAX_FRAMES = 2000;
 
@@ -126,23 +126,20 @@ export function runShowdown(
     // Step 2: advance / clash projectiles
     resolveClashes(state, events);
 
-    // Projectile launch: if an active projectile window's last frame equals
-    // the current frame, spawn the in-flight token (once per window).
+    // Projectile launch: when the projectile window's last frame equals the
+    // current frame, spawn the in-flight token. Per OQ-32 the projectile
+    // window is one logical token spanning [frame, frameEnd]; we launch at
+    // tokenLastFrame(t).
     for (let i = 0; i < 2; i++) {
       const seat = state.seats[i];
       if (!seat.activeCard) continue;
       const cur = seat.activeCard;
       for (const t of state.tokens) {
-        if (t.seat !== seat.id || t.frame !== state.frame || t.cardId !== cur.cardId || t.kind !== 'projectile') continue;
-        // Is this the last projectile token for (cardId, seat)?
-        const lastForCard = state.tokens
-          .filter((u) => u.seat === seat.id && u.cardId === cur.cardId && u.kind === 'projectile')
-          .reduce((m, u) => Math.max(m, u.frame), -Infinity);
-        if (t.frame === lastForCard) {
-          // Already launched? (guard via side-area tether)
-          const already = seat.sideArea.some((p) => p.cardId === cur.cardId && p.reason === 'projectile');
-          if (!already) launchProjectile(state, seat.id, t, events);
-        }
+        if (t.seat !== seat.id || t.cardId !== cur.cardId || t.kind !== 'projectile') continue;
+        if (tokenLastFrame(t) !== state.frame) continue;
+        // Already launched? (guard via side-area tether)
+        const already = seat.sideArea.some((p) => p.cardId === cur.cardId && p.reason === 'projectile');
+        if (!already) launchProjectile(state, seat.id, t, events);
       }
     }
 
@@ -244,13 +241,16 @@ export function runShowdown(
       const cur = state.seats[aIdx].activeCard;
       if (!cur) continue;
       // Find the attacker's own hit/grab attack window's global frame range.
+      // Per OQ-32, hit/grab/parry are single-token windows: the token's
+      // [frame, frameEnd] is the full window range.
       let attackStart = -1;
       let attackEnd = -1;
       for (const t of state.tokens) {
-        if (t.seat === state.seats[aIdx].id && t.cardId === cur.cardId && (t.kind === 'hit' || t.kind === 'grab' || t.kind === 'parry')) {
-          if (attackStart < 0 || t.frame < attackStart) attackStart = t.frame;
-          if (t.frame > attackEnd) attackEnd = t.frame;
-        }
+        if (t.seat !== state.seats[aIdx].id || t.cardId !== cur.cardId) continue;
+        if (t.kind !== 'hit' && t.kind !== 'grab' && t.kind !== 'parry') continue;
+        if (attackStart < 0 || t.frame < attackStart) attackStart = t.frame;
+        const last = tokenLastFrame(t);
+        if (last > attackEnd) attackEnd = last;
       }
       if (attackStart < 0) {
         // non-attack card (e.g. pure defensive) — ends the combo
@@ -330,19 +330,15 @@ function detectKO(state: MatchState): SeatId | null {
 
 function resolveEffectActivationsAndEnds(state: MatchState, events: ResolverEvent[]): void {
   // Effect activation fires on the last frame of the activation window, not
-  // interrupted by prior steps. Here we fire any effect token at the current
-  // frame whose card is still active (not stunned on this frame).
+  // interrupted by prior steps. Per OQ-32 the effect window is a single
+  // logical token spanning [frame, frameEnd]; we fire at tokenLastFrame(t).
   for (let i = 0; i < 2; i++) {
     const seat = state.seats[i];
     const cur = seat.activeCard;
     if (!cur) continue;
     for (const t of state.tokens) {
-      if (t.seat !== seat.id || t.frame !== state.frame || t.cardId !== cur.cardId || t.kind !== 'effect') continue;
-      // Is this the last effect token of this window?
-      const last = state.tokens
-        .filter((u) => u.seat === seat.id && u.cardId === cur.cardId && u.kind === 'effect')
-        .reduce((m, u) => Math.max(m, u.frame), -Infinity);
-      if (t.frame !== last) continue;
+      if (t.seat !== seat.id || t.cardId !== cur.cardId || t.kind !== 'effect') continue;
+      if (tokenLastFrame(t) !== state.frame) continue;
       // Check for interruption: if defender stun hit this seat earlier this
       // frame, we'd have returned already; if seat is currently stunned at
       // this frame, don't activate.

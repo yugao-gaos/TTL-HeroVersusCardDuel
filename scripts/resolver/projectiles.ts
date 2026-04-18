@@ -21,7 +21,7 @@ import type {
   SeatIndex,
   TimelineToken,
 } from './types.ts';
-import { otherSeat, seatIdOf, seatIndexOf } from './types.ts';
+import { otherSeat, seatIdOf, seatIndexOf, tokenCoversFrame } from './types.ts';
 
 /**
  * Called on a projectile attack window's last launch frame (§9 Lifecycle step 2).
@@ -165,7 +165,10 @@ export function resolveArrivals(state: MatchState, events: ResolverEvent[]): boo
 
     if (def) {
       for (const t of state.tokens) {
-        if (t.seat !== target.id || t.frame !== state.frame) continue;
+        if (t.seat !== target.id) continue;
+        // block/armor are per-frame (frame === state.frame); reflect is a
+        // multi-frame window token (range covers state.frame). Per OQ-32.
+        if (!tokenCoversFrame(t, state.frame)) continue;
         if (t.cardId !== def.cardId && t.kind !== 'block') continue; // block can be from spacer
         if (t.kind === 'reflect') reflectToken = t;
         if (t.kind === 'block') blockToken = t;

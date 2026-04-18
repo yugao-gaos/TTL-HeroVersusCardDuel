@@ -1,30 +1,39 @@
 /**
  * HVCD resolver — token placement, lookup, and conflict resolution
  *
- * Per combat-system.md §5:
- *   - Tokens are per-frame atomic entities with (seat, frame, kind).
- *   - `knockdown` overwrites `stun`.
- *   - `stun` + `block` mutually exclude (first-placed wins).
+ * Per combat-system.md §5 (post OQ-32):
+ *   - Per-frame kinds (`block`, `armor`, `stun`, `knockdown`) are placed one
+ *     token per frame.
+ *   - Multi-frame window kinds (`hit`, `grab`, `projectile`, `parry`,
+ *     `evasion`, `reflect`, `effect`) are **one logical token** with an
+ *     inclusive `[frame, frameEnd]` range.
+ *   - Single-frame kinds (`cancel`, `effect-end`) are one token at one frame.
  *
- * All per-kind window expansion lives in `scripts/kinds/card.ts` and the
- * kinds/token.ts — these functions are the primitive placement ops.
+ * Placement-conflict rules (only meaningful for per-frame kinds — window
+ * tokens are not placement-conflict-eligible because they live alongside
+ * status tokens, never compete for occupancy):
+ *   - `knockdown` overwrites `stun` at the same (seat, frame)
+ *   - `stun` + `block` mutually exclude (first-placed wins).
  */
 import type { MatchState, SeatId, TimelineToken, TokenKind } from './types.ts';
+import { tokenCoversFrame, tokenLastFrame } from './types.ts';
 
-/** True iff any token matching (seat, frame, kind) exists. */
+/** True iff any token matching (seat, frame, kind) covers the frame. */
 export function hasToken(state: MatchState, seat: SeatId, frame: number, kind: TokenKind): boolean {
-  return state.tokens.some((t) => t.seat === seat && t.frame === frame && t.kind === kind);
+  return state.tokens.some(
+    (t) => t.seat === seat && t.kind === kind && tokenCoversFrame(t, frame),
+  );
 }
 
 export function tokensAt(state: MatchState, seat: SeatId, frame: number): TimelineToken[] {
   const out: TimelineToken[] = [];
   for (const t of state.tokens) {
-    if (t.seat === seat && t.frame === frame) out.push(t);
+    if (t.seat === seat && tokenCoversFrame(t, frame)) out.push(t);
   }
   return out;
 }
 
-/** All frames in range where the seat has a token of the given kind. */
+/** True iff any token of one of the kinds is active at any frame in [from, to]. */
 export function anyTokenInRange(
   state: MatchState,
   seat: SeatId,
@@ -34,7 +43,11 @@ export function anyTokenInRange(
 ): boolean {
   const set = new Set(kinds);
   for (const t of state.tokens) {
-    if (t.seat === seat && set.has(t.kind) && t.frame >= from && t.frame <= to) return true;
+    if (t.seat !== seat || !set.has(t.kind)) continue;
+    // Range overlap: [t.frame, tokenLastFrame(t)] vs [from, to]
+    const tEnd = tokenLastFrame(t);
+    if (t.frame > to || tEnd < from) continue;
+    return true;
   }
   return false;
 }
@@ -55,19 +68,23 @@ export function removeTokens(state: MatchState, pred: (t: TimelineToken) => bool
  * Place a token subject to §5 placement-conflict rules.
  * Returns true if placed, false if rejected by conflict.
  *
- * Rules:
- *   - knockdown overwrites stun at the same (seat, frame)
- *   - stun and block mutually exclude: first wins
- *   - otherwise duplicate same-kind tokens are allowed (multi-seat/time-layered)
+ * Per OQ-32, placement-conflict rules apply only to per-frame status-style
+ * kinds (`stun`, `knockdown`, `block`). Multi-frame window tokens
+ * (hit/grab/projectile/parry/evasion/reflect/effect) and single-frame tokens
+ * (cancel/effect-end) are never gated by conflict — they're seat-and-card-
+ * scoped and don't compete for the same frame slot.
  */
 export function placeToken(state: MatchState, tok: TimelineToken): boolean {
-  const peers = state.tokens.filter((t) => t.seat === tok.seat && t.frame === tok.frame);
+  // Per-frame conflict checks only inspect tokens covering tok.frame.
+  // (For status placement we always create one token per frame, so this is
+  // a per-frame conflict check.)
+  const startFrame = tok.frame;
 
-  // knockdown over stun
+  // knockdown over stun (per-frame placement)
   if (tok.kind === 'knockdown') {
     for (let i = state.tokens.length - 1; i >= 0; i--) {
       const t = state.tokens[i];
-      if (t.seat === tok.seat && t.frame === tok.frame && t.kind === 'stun') {
+      if (t.seat === tok.seat && t.kind === 'stun' && tokenCoversFrame(t, startFrame)) {
         state.tokens.splice(i, 1);
       }
     }
@@ -76,11 +93,17 @@ export function placeToken(state: MatchState, tok: TimelineToken): boolean {
   }
 
   // stun <-> block mutual exclusion
-  if (tok.kind === 'stun' && peers.some((t) => t.kind === 'block' || t.kind === 'knockdown')) {
-    return false;
+  if (tok.kind === 'stun') {
+    for (const t of state.tokens) {
+      if (t.seat !== tok.seat || !tokenCoversFrame(t, startFrame)) continue;
+      if (t.kind === 'block' || t.kind === 'knockdown') return false;
+    }
   }
-  if (tok.kind === 'block' && peers.some((t) => t.kind === 'stun' || t.kind === 'knockdown')) {
-    return false;
+  if (tok.kind === 'block') {
+    for (const t of state.tokens) {
+      if (t.seat !== tok.seat || !tokenCoversFrame(t, startFrame)) continue;
+      if (t.kind === 'stun' || t.kind === 'knockdown') return false;
+    }
   }
 
   state.tokens.push(tok);
@@ -104,7 +127,8 @@ export function carryoverExtent(state: MatchState, seat: SeatId, cursor: number)
   for (const t of state.tokens) {
     if (t.seat !== seat) continue;
     if (t.kind !== 'stun' && t.kind !== 'knockdown' && t.kind !== 'block') continue;
-    if (t.frame > max) max = t.frame;
+    const last = tokenLastFrame(t);
+    if (last > max) max = last;
   }
   return max;
 }

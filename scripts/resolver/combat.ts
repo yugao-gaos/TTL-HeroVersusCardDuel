@@ -18,11 +18,18 @@ import type {
   SeatIndex,
   TimelineToken,
 } from './types.ts';
-import { otherSeat, seatIdOf } from './types.ts';
+import { otherSeat, seatIdOf, tokenCoversFrame, tokenLastFrame } from './types.ts';
 
 /**
  * Find the attack token active on seat at frame (one of hit/grab/parry/effect).
  * Only considers the seat's currently-playing card. Returns null if none.
+ *
+ * Per OQ-32, attack windows are single logical tokens; they "fire once" on
+ * the first frame the window becomes active. So we match on `frame === start`
+ * (the token's `frame` field). At subsequent frames within the window's
+ * range, `findActiveAttackToken` returns null because the token either
+ * already fired (attacker's card was truncated) or wasn't supposed to fire
+ * again this window.
  */
 export function findActiveAttackToken(
   state: MatchState,
@@ -33,7 +40,12 @@ export function findActiveAttackToken(
   const cur = seat.activeCard;
   if (!cur) return null;
   for (const t of state.tokens) {
-    if (t.seat === seat.id && t.frame === state.frame && t.cardId === cur.cardId && (kinds as string[]).includes(t.kind)) {
+    if (
+      t.seat === seat.id &&
+      t.frame === state.frame &&
+      t.cardId === cur.cardId &&
+      (kinds as string[]).includes(t.kind)
+    ) {
       return t;
     }
   }
@@ -48,15 +60,18 @@ function activeDefenseTokens(
   const defender = state.seats[defenderIdx];
   const cur = defender.activeCard;
   const out: TimelineToken[] = [];
-  // Card-bound defenses (evasion, armor, reflect, and card-own block)
+  // Card-bound defenses (evasion, armor, reflect, and card-own block).
+  // Per OQ-32:
+  //   - block / armor are per-frame tokens → covered by frame equality.
+  //   - evasion / reflect are multi-frame single-token windows → check range.
   for (const t of state.tokens) {
-    if (t.seat !== defender.id || t.frame !== state.frame) continue;
-    if (t.kind === 'block' || t.kind === 'armor' || t.kind === 'evasion' || t.kind === 'reflect') {
-      // Only consider tokens belonging to the defender's active card OR
-      // spacer-placed block tokens (no cardId).
-      if (!cur && t.cardId !== undefined) continue;
-      out.push(t);
-    }
+    if (t.seat !== defender.id) continue;
+    if (t.kind !== 'block' && t.kind !== 'armor' && t.kind !== 'evasion' && t.kind !== 'reflect') continue;
+    if (!tokenCoversFrame(t, state.frame)) continue;
+    // Only consider tokens belonging to the defender's active card OR
+    // spacer-placed block tokens (no cardId).
+    if (!cur && t.cardId !== undefined) continue;
+    out.push(t);
   }
   return out;
 }
@@ -371,8 +386,16 @@ function findDefenderParry(state: MatchState, defenderIdx: SeatIndex): TimelineT
   const defender = state.seats[defenderIdx];
   const cur = defender.activeCard;
   if (!cur) return null;
+  // Parry is a multi-frame window (single logical token, OQ-32). It covers
+  // every frame in [frame, frameEnd]; per-tick re-arming is enforced by the
+  // `parryFiredThisFrame` set on MatchState.
   for (const t of state.tokens) {
-    if (t.seat === defender.id && t.frame === state.frame && t.kind === 'parry' && t.cardId === cur.cardId) {
+    if (
+      t.seat === defender.id &&
+      t.kind === 'parry' &&
+      t.cardId === cur.cardId &&
+      tokenCoversFrame(t, state.frame)
+    ) {
       return t;
     }
   }
@@ -384,6 +407,18 @@ function findDefenderParry(state: MatchState, defenderIdx: SeatIndex): TimelineT
  * placement-conflict rules (§5): knockdown over stun; stun does not overwrite
  * block.
  * Emits stun-placed / knockdown-placed events.
+ *
+ * B2 ambiguity #5 (combat-system.md §5): when a hit connects and places stun
+ * on the defender, the defender's remaining card tokens at those frames —
+ * **including cancel** — are removed from the timeline alongside the card
+ * being discarded. Implemented here for `source === 'hit'`. The cancel does
+ * not "whiff"; it ceases to exist (no `cancel-whiffed` event).
+ *
+ * `source === 'parry'` targets the attacker, whose card discard is owned by
+ * the parry call site (`truncateAttackerCard`); we don't double-discard here.
+ * `source === 'block-stun-overflow'` is handled by the block-extension path
+ * (the defender was blocking, not hit through, so their card lifecycle is
+ * managed by extendBlockStun's own cursor advance).
  */
 export function placeStun(
   state: MatchState,
@@ -396,6 +431,15 @@ export function placeStun(
 ): void {
   if (count <= 0) return;
   const seat = state.seats[targetIdx];
+
+  // When a hit connects and stuns the defender, discard the defender's
+  // active card *first* — purges its remaining window/defense/cancel tokens
+  // out of the way before the stun tokens are placed. This avoids leaving
+  // a cancel token to fire on a future stunned frame (B2 #5).
+  if (source === 'hit' && seat.activeCard) {
+    cancelDefenderCard(state, targetIdx, events);
+  }
+
   const placedFrames: number[] = [];
   for (let i = 0; i < count; i++) {
     const f = fromFrame + i;
@@ -483,15 +527,22 @@ function truncateAttackerCard(
   const cur = seat.activeCard;
   if (!cur) return;
 
-  // Compute impactEnd from the hit tokens still on the timeline for this card.
+  // Compute impactEnd from the attack tokens still on the timeline for this
+  // card. Per OQ-32, hit/grab/parry are single windowed tokens, so use the
+  // token's last frame (frameEnd ?? frame).
   let impactEnd = state.frame;
   for (const t of state.tokens) {
-    if (t.seat === seat.id && t.cardId === cur.cardId && (t.kind === 'hit' || t.kind === 'grab' || t.kind === 'parry')) {
-      if (t.frame > impactEnd) impactEnd = t.frame;
-    }
+    if (t.seat !== seat.id || t.cardId !== cur.cardId) continue;
+    if (t.kind !== 'hit' && t.kind !== 'grab' && t.kind !== 'parry') continue;
+    const last = tokenLastFrame(t);
+    if (last > impactEnd) impactEnd = last;
   }
 
-  // Remove all remaining tokens for this card after impactEnd.
+  // Remove all remaining tokens for this card whose start is past impactEnd.
+  // (A windowed token whose frameEnd > impactEnd shouldn't normally exist
+  // under §3 "one window per kind per card" — only `cancel` (single frame)
+  // can sit past impactEnd. Block/armor per-frame tokens past impactEnd are
+  // also removed.)
   removeTokens(state, (t) => t.seat === seat.id && t.cardId === cur.cardId && t.frame > impactEnd);
 
   seat.cursor = impactEnd + 1;
@@ -510,6 +561,17 @@ function truncateAttackerCard(
 /**
  * Cancel the defender's active card (§5 on hit connect — defender card is
  * interrupted by stun).
+ *
+ * B2 ambiguity #5 (combat-system.md §5): "all of the defender's remaining
+ * window tokens at those frames (attack, defense, **and cancel**) are
+ * **removed** from the timeline alongside the card being discarded." The
+ * cancel does not "whiff" from stun — it ceases to exist. No
+ * `cancel-whiffed` event fires from this path.
+ *
+ * We remove every token authored by this card whose live extent reaches
+ * into `state.frame` or beyond — including cancel, including windowed
+ * attack/defense tokens that started before `state.frame` but extend into
+ * it (so the per-window range is fully purged).
  */
 export function cancelDefenderCard(
   state: MatchState,
@@ -519,8 +581,10 @@ export function cancelDefenderCard(
   const seat = state.seats[defenderIdx];
   const cur = seat.activeCard;
   if (!cur) return;
-  // Remove remaining tokens for the defender's card.
-  removeTokens(state, (t) => t.seat === seat.id && t.cardId === cur.cardId && t.frame >= state.frame);
+  removeTokens(
+    state,
+    (t) => t.seat === seat.id && t.cardId === cur.cardId && tokenLastFrame(t) >= state.frame,
+  );
   seat.discard.push(cur.cardId);
   events.push({
     kind: 'card-left-timeline',

@@ -173,8 +173,25 @@ export type StatusTokenKind = 'stun' | 'knockdown' | 'effect-end';
 export type TokenKind = WindowTokenKind | StatusTokenKind;
 
 /**
- * A single global-frame + seat + kind + cardId token on the shared timeline.
- * Multi-frame windows are expanded into multiple tokens at dequeue.
+ * A single token on the shared timeline.
+ *
+ * Per OQ-32 (combat-system.md §5 "Per-kind token consumption"): consumption
+ * is per-kind, not uniform per-frame. The on-the-wire model accordingly mixes
+ * single-frame tokens (per-frame kinds) and multi-frame windows-as-one-token.
+ *
+ *   - Multi-frame, fires-once kinds (`hit`, `grab`, `projectile`, `parry`,
+ *     `evasion`, `reflect`, `effect`) are **one logical token** spanning
+ *     `frame .. frameEnd` inclusive. They occupy every frame in that range
+ *     for activeness checks but are consumed once. The per-frame chip
+ *     visualization in the UI is purely a rendering choice.
+ *   - Per-frame kinds (`block`, `armor`, `stun`, `knockdown`) place one
+ *     token per frame (each absorbs / suppresses independently).
+ *   - Single-frame kinds (`cancel`, `effect-end`) place one token at one
+ *     frame (`frame === frameEnd`).
+ *
+ * `frame` is the first global frame the token is active. `frameEnd` is the
+ * inclusive last frame. For single-frame tokens omit `frameEnd` (defaults
+ * to `frame`).
  *
  * `payload` is freeform per-kind. Fields used by the resolver:
  *   hit / grab / projectile / parry: damage, hits, hitStun, blockStun,
@@ -189,10 +206,49 @@ export type TokenKind = WindowTokenKind | StatusTokenKind;
 export interface TimelineToken {
   kind: TokenKind;
   seat: SeatId;
-  frame: number; // global frame
+  /** First global frame the token is active (inclusive). */
+  frame: number;
+  /**
+   * Last global frame the token is active (inclusive). Defaults to `frame`
+   * when omitted (single-frame token). Only meaningful for the multi-frame
+   * window kinds (hit/grab/projectile/parry/evasion/reflect/effect).
+   */
+  frameEnd?: number;
   cardId?: string;
   payload?: Record<string, unknown>;
 }
+
+/** True if a token is active at the given global frame (inclusive range). */
+export function tokenCoversFrame(t: TimelineToken, frame: number): boolean {
+  return frame >= t.frame && frame <= (t.frameEnd ?? t.frame);
+}
+
+/** Last global frame this token is active (inclusive). */
+export function tokenLastFrame(t: TimelineToken): number {
+  return t.frameEnd ?? t.frame;
+}
+
+/**
+ * Per-kind classification used by the resolver to decide placement granularity.
+ * Per OQ-32 / combat-system.md §5.
+ */
+export const PER_FRAME_KINDS: ReadonlySet<TokenKind> = new Set<TokenKind>([
+  'block',
+  'armor',
+  'stun',
+  'knockdown',
+]);
+
+/** Multi-frame, fires-once-per-window kinds (single logical token). */
+export const WINDOW_RANGE_KINDS: ReadonlySet<TokenKind> = new Set<TokenKind>([
+  'hit',
+  'grab',
+  'projectile',
+  'parry',
+  'evasion',
+  'reflect',
+  'effect',
+]);
 
 /**
  * In-flight projectile — match-scoped, not seat-scoped.

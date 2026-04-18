@@ -1,24 +1,33 @@
 /**
  * HVCD kind: token
  *
- * Every atomic per-frame entity on the shared timeline is a token. Per
- * combat-system.md §5 there are 12 token kinds across three placement
- * families:
+ * Tokens on the shared timeline, per combat-system.md §5 + OQ-32.
+ * Consumption granularity is **per-kind** (not uniform per-frame):
  *
  *   - Window tokens (10), placed on dequeue:
  *       hit, grab, projectile, parry, effect,
  *       block, armor, evasion, reflect, cancel
+ *
+ *     Multi-frame / fires-once kinds (hit, grab, projectile, parry, evasion,
+ *     reflect, effect) are **one logical token** with `frame..frameEnd`
+ *     internal structure. The per-frame chip visualization in the UI is a
+ *     rendering choice, not a reflection of multiple token instances.
+ *
+ *     Per-frame kinds (block, armor) place one token per frame — each
+ *     frame independently absorbs. Cancel is single-frame.
+ *
  *   - Status tokens (2), spawned by the resolver:
- *       stun, knockdown
+ *       stun, knockdown  (per-frame)
  *   - Lifecycle token (1):
- *       effect-end
+ *       effect-end       (single-frame)
  *
  * Plus one match-scoped floating token:
  *       projectile (in-flight; match-scoped, not seat-scoped — §9)
  *
  * Render note: in the cabinet UI (renderer-slots.md), tokens appear as
  * chips placed along the timeline rail. The token kind determines chip
- * color/icon. Owner seat + globalFrame place the chip.
+ * color/icon. Owner seat + globalFrame (+ frameEnd for windows) place the
+ * chip span.
  */
 exports.kind = {
   id: 'hvcd.token',
@@ -65,6 +74,16 @@ exports.kind = {
       type: 'number',
       min: 0,
       step: 1,
+      description: 'First active global frame.',
+    },
+    {
+      path: 'props.frameEnd',
+      label: 'Window End Frame (inclusive; omit for single-frame)',
+      type: 'number',
+      min: 0,
+      step: 1,
+      description:
+        'Last active global frame for multi-frame window kinds (hit, grab, projectile, parry, evasion, reflect, effect). Omit for per-frame or single-frame kinds.',
     },
     {
       path: 'props.cardId',

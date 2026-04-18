@@ -14,6 +14,7 @@ import type {
   CancelWindow,
   DefenseWindows,
   FrameRange,
+  MatchState,
   ResolverEvent,
   SeatId,
   TimelineToken,
@@ -69,35 +70,76 @@ function emit(
   });
 }
 
-function expandFrames(
-  range: FrameRange,
-  startFrame: number,
-): { globalFrames: number[]; cardLocal: FrameRange } {
+function rangeFor(range: FrameRange, startFrame: number): {
+  globalStart: number;
+  globalEnd: number;
+  cardLocal: FrameRange;
+  windowLength: number;
+} {
   const [lo, hi] = range;
-  const globalFrames: number[] = [];
-  for (let f = lo; f <= hi; f++) globalFrames.push(startFrame + f);
-  return { globalFrames, cardLocal: [lo, hi] };
+  return {
+    globalStart: startFrame + lo,
+    globalEnd: startFrame + hi,
+    cardLocal: [lo, hi],
+    windowLength: hi - lo + 1,
+  };
 }
 
-function placeRange(
-  state: { tokens: TimelineToken[]; [k: string]: unknown },
+/**
+ * Place a multi-frame window as a single logical token (OQ-32). The token
+ * carries `frame` (window start) and `frameEnd` (inclusive last frame).
+ */
+function placeWindow(
+  state: MatchState,
   seat: SeatId,
   cardId: string,
   kind: WindowTokenKind,
-  globalFrames: number[],
+  globalStart: number,
+  globalEnd: number,
   payload: Record<string, unknown>,
 ): void {
-  for (const f of globalFrames) {
-    placeToken(state as never, { kind, seat, frame: f, cardId, payload });
+  placeToken(state, {
+    kind,
+    seat,
+    frame: globalStart,
+    frameEnd: globalEnd,
+    cardId,
+    payload,
+  });
+}
+
+/**
+ * Place a per-frame window as N independent tokens (block / armor) per OQ-32.
+ */
+function placePerFrame(
+  state: MatchState,
+  seat: SeatId,
+  cardId: string,
+  kind: WindowTokenKind,
+  globalStart: number,
+  globalEnd: number,
+  payload: Record<string, unknown>,
+): void {
+  for (let f = globalStart; f <= globalEnd; f++) {
+    placeToken(state, { kind, seat, frame: f, cardId, payload });
   }
 }
 
 /**
  * Expand a card's windows into timeline tokens + emit window-tokens-placed events.
- * Returns the event list produced.
+ *
+ * Per OQ-32 (§5 Per-kind token consumption):
+ *   - hit / grab / projectile / parry / evasion / reflect / effect →
+ *     **one logical token** spanning [start, end].
+ *   - block / armor → per-frame tokens (each independently absorbs).
+ *   - cancel → single-frame token.
+ *
+ * Returns the event list produced. Event shape (`window-tokens-placed`) is
+ * unchanged — `frames` is the card-local range exactly as before, so on-the-
+ * wire ResolverEvent stream is bit-for-bit equivalent.
  */
 export function expandCardToTokens(
-  state: Parameters<typeof placeToken>[0],
+  state: MatchState,
   seat: SeatId,
   card: Card,
   startFrame: number,
@@ -106,19 +148,19 @@ export function expandCardToTokens(
   const a: AttackWindows = card.attackWindows ?? {};
   const d: DefenseWindows = card.defenseWindows ?? {};
 
-  // Attack windows
+  // Attack windows — single logical token each (OQ-32).
   if (a.hit) {
-    const { globalFrames, cardLocal } = expandFrames(a.hit.frames, startFrame);
+    const r = rangeFor(a.hit.frames, startFrame);
     const payload: Record<string, unknown> = {
       damage: a.hit.damage ?? 0,
       hits: a.hit.hits ?? 1,
-      hitStun: a.hit.hitStun ?? globalFrames.length,
+      hitStun: a.hit.hitStun ?? r.windowLength,
       blockStun: a.hit.blockStun ?? 0,
       knockdown: !!a.hit.knockdown,
       defenseBreaker: !!a.hit.defenseBreaker,
     };
-    placeRange(state, seat, card.id, 'hit', globalFrames, payload);
-    emit(events, seat, card.id, startFrame, 'hit', cardLocal, {
+    placeWindow(state, seat, card.id, 'hit', r.globalStart, r.globalEnd, payload);
+    emit(events, seat, card.id, startFrame, 'hit', r.cardLocal, {
       kind: 'hit',
       damage: a.hit.damage,
       hits: a.hit.hits,
@@ -129,15 +171,15 @@ export function expandCardToTokens(
     });
   }
   if (a.grab) {
-    const { globalFrames, cardLocal } = expandFrames(a.grab.frames, startFrame);
+    const r = rangeFor(a.grab.frames, startFrame);
     const payload = {
       damage: a.grab.damage ?? 0,
       hits: a.grab.hits ?? 1,
-      hitStun: a.grab.hitStun ?? globalFrames.length,
+      hitStun: a.grab.hitStun ?? r.windowLength,
       defenseBreaker: !!a.grab.defenseBreaker,
     };
-    placeRange(state, seat, card.id, 'grab', globalFrames, payload);
-    emit(events, seat, card.id, startFrame, 'grab', cardLocal, {
+    placeWindow(state, seat, card.id, 'grab', r.globalStart, r.globalEnd, payload);
+    emit(events, seat, card.id, startFrame, 'grab', r.cardLocal, {
       kind: 'grab',
       damage: a.grab.damage,
       hits: a.grab.hits,
@@ -146,7 +188,7 @@ export function expandCardToTokens(
     });
   }
   if (a.projectile) {
-    const { globalFrames, cardLocal } = expandFrames(a.projectile.frames, startFrame);
+    const r = rangeFor(a.projectile.frames, startFrame);
     const payload = {
       damage: a.projectile.damage ?? 0,
       hits: a.projectile.hits ?? 1,
@@ -155,8 +197,8 @@ export function expandCardToTokens(
       defenseBreaker: !!a.projectile.defenseBreaker,
       knockdown: !!a.projectile.knockdown,
     };
-    placeRange(state, seat, card.id, 'projectile', globalFrames, payload);
-    emit(events, seat, card.id, startFrame, 'projectile', cardLocal, {
+    placeWindow(state, seat, card.id, 'projectile', r.globalStart, r.globalEnd, payload);
+    emit(events, seat, card.id, startFrame, 'projectile', r.cardLocal, {
       kind: 'projectile',
       damage: a.projectile.damage,
       hits: a.projectile.hits,
@@ -167,16 +209,16 @@ export function expandCardToTokens(
     });
   }
   if (a.parry) {
-    const { globalFrames, cardLocal } = expandFrames(a.parry.frames, startFrame);
+    const r = rangeFor(a.parry.frames, startFrame);
     const payload = {
       damage: a.parry.damage ?? 0,
       hits: a.parry.hits ?? 1,
-      hitStun: a.parry.hitStun ?? globalFrames.length,
+      hitStun: a.parry.hitStun ?? r.windowLength,
       blockStun: a.parry.blockStun ?? 0,
       knockdown: !!a.parry.knockdown,
     };
-    placeRange(state, seat, card.id, 'parry', globalFrames, payload);
-    emit(events, seat, card.id, startFrame, 'parry', cardLocal, {
+    placeWindow(state, seat, card.id, 'parry', r.globalStart, r.globalEnd, payload);
+    emit(events, seat, card.id, startFrame, 'parry', r.cardLocal, {
       kind: 'parry',
       damage: a.parry.damage,
       hits: a.parry.hits,
@@ -185,14 +227,14 @@ export function expandCardToTokens(
     });
   }
   if (a.effect) {
-    const { globalFrames, cardLocal } = expandFrames(a.effect.frames, startFrame);
+    const r = rangeFor(a.effect.frames, startFrame);
     const payload = {
       effectId: a.effect.effectId,
       target: a.effect.target ?? 'self',
       duration: a.effect.duration,
     };
-    placeRange(state, seat, card.id, 'effect', globalFrames, payload);
-    emit(events, seat, card.id, startFrame, 'effect', cardLocal, {
+    placeWindow(state, seat, card.id, 'effect', r.globalStart, r.globalEnd, payload);
+    emit(events, seat, card.id, startFrame, 'effect', r.cardLocal, {
       kind: 'effect',
       effectId: a.effect.effectId,
       target: a.effect.target ?? 'self',
@@ -202,24 +244,31 @@ export function expandCardToTokens(
 
   // Defense windows
   if (d.block) {
-    const { globalFrames, cardLocal } = expandFrames(d.block.frames, startFrame);
-    placeRange(state, seat, card.id, 'block', globalFrames, { fromPool: false });
-    emit(events, seat, card.id, startFrame, 'block', cardLocal, { kind: 'block', fromPool: false });
+    const r = rangeFor(d.block.frames, startFrame);
+    placePerFrame(state, seat, card.id, 'block', r.globalStart, r.globalEnd, { fromPool: false });
+    emit(events, seat, card.id, startFrame, 'block', r.cardLocal, { kind: 'block', fromPool: false });
   }
   if (d.armor) {
-    const { globalFrames, cardLocal } = expandFrames(d.armor.frames, startFrame);
-    placeRange(state, seat, card.id, 'armor', globalFrames, { absorbs: d.armor.absorbs });
-    emit(events, seat, card.id, startFrame, 'armor', cardLocal, { kind: 'armor', absorbs: d.armor.absorbs });
+    const r = rangeFor(d.armor.frames, startFrame);
+    placePerFrame(state, seat, card.id, 'armor', r.globalStart, r.globalEnd, { absorbs: d.armor.absorbs });
+    emit(events, seat, card.id, startFrame, 'armor', r.cardLocal, { kind: 'armor', absorbs: d.armor.absorbs });
   }
+  // evasion — multi-frame, single logical token (continuous dodge across the window).
   if (d.evasion) {
-    const { globalFrames, cardLocal } = expandFrames(d.evasion.frames, startFrame);
-    placeRange(state, seat, card.id, 'evasion', globalFrames, {});
-    emit(events, seat, card.id, startFrame, 'evasion', cardLocal, { kind: 'evasion' });
+    const r = rangeFor(d.evasion.frames, startFrame);
+    placeWindow(state, seat, card.id, 'evasion', r.globalStart, r.globalEnd, {});
+    emit(events, seat, card.id, startFrame, 'evasion', r.cardLocal, { kind: 'evasion' });
   }
+  // reflect — multi-frame, re-arms per tick (resolver enforces ≤1 trigger per frame).
   if (d.reflect) {
-    const { globalFrames, cardLocal } = expandFrames(d.reflect.frames, startFrame);
-    placeRange(state, seat, card.id, 'reflect', globalFrames, { reflectTravel: d.reflect.reflectTravel });
-    emit(events, seat, card.id, startFrame, 'reflect', cardLocal, { kind: 'reflect', reflectTravel: d.reflect.reflectTravel });
+    const r = rangeFor(d.reflect.frames, startFrame);
+    placeWindow(state, seat, card.id, 'reflect', r.globalStart, r.globalEnd, {
+      reflectTravel: d.reflect.reflectTravel,
+    });
+    emit(events, seat, card.id, startFrame, 'reflect', r.cardLocal, {
+      kind: 'reflect',
+      reflectTravel: d.reflect.reflectTravel,
+    });
   }
 
   // Cancel window (single frame)
@@ -227,7 +276,13 @@ export function expandCardToTokens(
   if (cw) {
     const globalFrame = startFrame + cw.frame;
     // `armed` is set later — at the resolver's discretion — via the slot's rageCancelArmed.
-    placeRange(state, seat, card.id, 'cancel', [globalFrame], { hitCancel: !!cw.hitCancel, armed: false });
+    placeToken(state, {
+      kind: 'cancel',
+      seat,
+      frame: globalFrame,
+      cardId: card.id,
+      payload: { hitCancel: !!cw.hitCancel, armed: false },
+    });
     emit(events, seat, card.id, startFrame, 'cancel', [cw.frame, cw.frame], {
       kind: 'cancel',
       hitCancel: !!cw.hitCancel,

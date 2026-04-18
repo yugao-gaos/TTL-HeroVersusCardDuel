@@ -249,6 +249,173 @@ test('armor absorbs stun, damage still applies', () => {
   }
 });
 
+// === OQ-32: attack windows are a single logical token ===
+console.log('\nsimulate \u2014 OQ-32 single-window token');
+
+test('hit window places exactly one logical token with frame..frameEnd range', () => {
+  // A 3-frame hit window at local frames [1,3], so global [1,3].
+  const threeHit: Card = {
+    id: 'threeHit',
+    name: 'threeHit',
+    totalFrames: 8,
+    attackWindows: { hit: { frames: [1, 3], damage: 1, hits: 1, hitStun: 2 } },
+    defenseWindows: {},
+    cancelWindow: null,
+  };
+  // Defender does nothing at frame 1; hit lands at first frame.
+  const dummy: Card = { id: 'dummy', name: 'dummy', totalFrames: 20, attackWindows: {}, defenseWindows: {}, cancelWindow: null };
+  const lookup = buildLookup([threeHit, dummy]);
+  const s0 = createSeat('p1', 'a', { sequence: [{ kind: 'card', cardId: 'threeHit', mode: 'base', rageCancelArmed: false }] });
+  const s1 = createSeat('p2', 'b', { sequence: [{ kind: 'card', cardId: 'dummy', mode: 'base', rageCancelArmed: false }], hp: 10 });
+  const state = createInitialState([s0, s1]);
+  // Immediately after expansion (before run) we can't easily inspect — but
+  // we can check that during pre-run of tryDequeue the hit token count
+  // equals 1. For this we'll peek into finalState's tokens; the hit window
+  // stays on the timeline at its authored range (never removed because it
+  // fired at frame 1 and was consumed — but the token lingers for trace).
+  const r = runShowdown(state, { lookupCard: lookup });
+  const hitTokens = r.finalState.tokens.filter((t) => t.kind === 'hit' && t.seat === 'p1');
+  assert(hitTokens.length === 1, `expected exactly 1 logical hit token, got ${hitTokens.length}`);
+  const tok = hitTokens[0];
+  assert(tok.frame === 1 && tok.frameEnd === 3, `expected hit token frame=1 frameEnd=3, got frame=${tok.frame} frameEnd=${tok.frameEnd}`);
+});
+
+test('block window still places per-frame tokens (one per frame)', () => {
+  // 3-frame block window so 3 independent block tokens.
+  const blockCard: Card = {
+    id: 'blk',
+    name: 'blk',
+    totalFrames: 6,
+    attackWindows: {},
+    defenseWindows: { block: { frames: [1, 3] } },
+    cancelWindow: null,
+  };
+  const dummy: Card = { id: 'dummy', name: 'dummy', totalFrames: 20, attackWindows: {}, defenseWindows: {}, cancelWindow: null };
+  const lookup = buildLookup([blockCard, dummy]);
+  const s0 = createSeat('p1', 'a', { sequence: [{ kind: 'card', cardId: 'blk', mode: 'base', rageCancelArmed: false }] });
+  const s1 = createSeat('p2', 'b', { sequence: [{ kind: 'card', cardId: 'dummy', mode: 'base', rageCancelArmed: false }] });
+  const state = createInitialState([s0, s1]);
+  // Pre-run we want to observe the expansion; instead we inspect a short
+  // showdown where no one attacks, so tokens persist.
+  const r = runShowdown(state, { lookupCard: lookup });
+  const blockTokens = r.finalState.tokens.filter((t) => t.kind === 'block' && t.seat === 'p1' && t.cardId === 'blk');
+  assert(blockTokens.length === 3, `expected 3 per-frame block tokens, got ${blockTokens.length}`);
+  // Each should be a single-frame token (no frameEnd or frameEnd === frame).
+  for (const bt of blockTokens) {
+    const end = bt.frameEnd ?? bt.frame;
+    assert(end === bt.frame, `expected block token single-frame, got frame=${bt.frame} frameEnd=${bt.frameEnd}`);
+  }
+});
+
+test('hit window fires once even if defender stalled across its range (OQ-32 consumption)', () => {
+  // This regression test verifies the OQ-32 "fires once" semantic: a 3-frame
+  // hit window must not produce 3 separate hit-connected events against a
+  // passive defender.
+  const multiHit: Card = {
+    id: 'multiHit',
+    name: 'multiHit',
+    totalFrames: 6,
+    attackWindows: { hit: { frames: [1, 3], damage: 1, hits: 1, hitStun: 2 } },
+    defenseWindows: {},
+    cancelWindow: null,
+  };
+  const dummy: Card = { id: 'dummy', name: 'dummy', totalFrames: 20, attackWindows: {}, defenseWindows: {}, cancelWindow: null };
+  const lookup = buildLookup([multiHit, dummy]);
+  const s0 = createSeat('p1', 'a', { sequence: [{ kind: 'card', cardId: 'multiHit', mode: 'base', rageCancelArmed: false }] });
+  const s1 = createSeat('p2', 'b', { sequence: [{ kind: 'card', cardId: 'dummy', mode: 'base', rageCancelArmed: false }], hp: 10 });
+  const state = createInitialState([s0, s1]);
+  const r = runShowdown(state, { lookupCard: lookup });
+  const connects = r.events.filter((e) => e.kind === 'hit-connected');
+  assert(connects.length === 1, `expected exactly 1 hit-connected (OQ-32 fires-once), got ${connects.length}`);
+});
+
+// === B2 ambiguity #5: stun removes ALL card tokens including cancel ===
+console.log('\nsimulate \u2014 B2 #5 stun removes all card tokens incl. cancel');
+
+test('stun on defender removes pending cancel token (no cancel-whiffed emitted)', () => {
+  // Attacker: fast 1-damage hit landing at frame 2.
+  // Defender: slow card with a `cancel` window at a future frame that would
+  //           overlap the stun window placed by the attacker's hit.
+  //
+  // Per combat-system.md §5 "Stun interrupts remove card tokens" (B2 #5):
+  // when the attacker's hit lands and places stun on defender frames, the
+  // defender's card is discarded and all its remaining tokens — including
+  // `cancel` — are removed. No `cancel-whiffed` event should fire for the
+  // stun-interrupt case.
+  const attackCard: Card = {
+    id: 'atk',
+    name: 'atk',
+    totalFrames: 8,
+    attackWindows: { hit: { frames: [2, 3], damage: 1, hits: 1, hitStun: 10 } },
+    defenseWindows: {},
+    cancelWindow: null,
+  };
+  const slowWithCancel: Card = {
+    id: 'slowCancel',
+    name: 'slowCancel',
+    totalFrames: 20,
+    attackWindows: { hit: { frames: [15, 17], damage: 1, hitStun: 1 } },
+    defenseWindows: {},
+    // Cancel at local frame 5 → global frame 5 (after stun lands at 3).
+    cancelWindow: { frame: 5, hitCancel: true, rageCost: 1 },
+  };
+  const lookup = buildLookup([attackCard, slowWithCancel]);
+  const s0 = createSeat('p1', 'a', { sequence: [{ kind: 'card', cardId: 'atk', mode: 'base', rageCancelArmed: false }] });
+  const s1 = createSeat('p2', 'b', { sequence: [{ kind: 'card', cardId: 'slowCancel', mode: 'base', rageCancelArmed: false }], hp: 10 });
+  const state = createInitialState([s0, s1]);
+  const r = runShowdown(state, { lookupCard: lookup });
+  // The hit should have connected.
+  const connected = r.events.find((e) => e.kind === 'hit-connected');
+  assert(!!connected, 'expected hit-connected event');
+  // After stun, the cancel token at global frame 5 should be gone.
+  const cancelTokensAfter = r.finalState.tokens.filter(
+    (t) => t.kind === 'cancel' && t.seat === 'p2' && t.cardId === 'slowCancel',
+  );
+  assert(cancelTokensAfter.length === 0, `expected defender cancel token purged, got ${cancelTokensAfter.length}`);
+  // No cancel-whiffed event should have fired from the stun-interrupt.
+  const whiffed = r.events.filter(
+    (e) => e.kind === 'cancel-whiffed' && e.seat === 'p2' && e.cardId === 'slowCancel',
+  );
+  assert(whiffed.length === 0, `expected no cancel-whiffed from stun-interrupt, got ${whiffed.length}`);
+  // The defender's card should have been discarded.
+  assert(
+    r.finalState.seats[1].discard.includes('slowCancel'),
+    `expected 'slowCancel' in defender discard, got ${JSON.stringify(r.finalState.seats[1].discard)}`,
+  );
+});
+
+test('stun on defender removes pending attack and defense tokens of that card', () => {
+  const attackCard: Card = {
+    id: 'atk',
+    name: 'atk',
+    totalFrames: 8,
+    attackWindows: { hit: { frames: [2, 3], damage: 1, hits: 1, hitStun: 6 } },
+    defenseWindows: {},
+    cancelWindow: null,
+  };
+  // Defender has a hit at [10,12] and a block at [6,8] — both should be
+  // removed when stun lands from attacker's hit at frame 2.
+  const defenderCard: Card = {
+    id: 'def',
+    name: 'def',
+    totalFrames: 14,
+    attackWindows: { hit: { frames: [10, 12], damage: 1, hitStun: 1 } },
+    defenseWindows: { block: { frames: [6, 8] } },
+    cancelWindow: null,
+  };
+  const lookup = buildLookup([attackCard, defenderCard]);
+  const s0 = createSeat('p1', 'a', { sequence: [{ kind: 'card', cardId: 'atk', mode: 'base', rageCancelArmed: false }] });
+  const s1 = createSeat('p2', 'b', { sequence: [{ kind: 'card', cardId: 'def', mode: 'base', rageCancelArmed: false }], hp: 10 });
+  const state = createInitialState([s0, s1]);
+  const r = runShowdown(state, { lookupCard: lookup });
+  const leftover = r.finalState.tokens.filter(
+    (t) => t.seat === 'p2' && t.cardId === 'def',
+  );
+  // All of the defender card's authored tokens (hit, block) should have been
+  // purged when the attacker's hit connected at frame 2.
+  assert(leftover.length === 0, `expected defender's card tokens purged, got ${leftover.length}`);
+});
+
 // === summary ===
 const passed = results.filter((r) => r.passed).length;
 const failed = results.length - passed;
