@@ -11,6 +11,33 @@
  * to a deterministic per-match commit log so match-end.ts can attach them to
  * the inline replay blob (OQ-12).
  *
+ * Wave 4 / A7 migration status — DEFERRED
+ * ----------------------------------------
+ * The platform's Track A7 `dual-schema` privacy mode is the right home for
+ * "the cardId of a committed slot is hidden from the opponent until reveal."
+ * Per the spec example:
+ *
+ *   setEntityPrivacy(slotEntityId, {
+ *     mode: 'dual-schema',
+ *     ownerSeat: committingSeat,
+ *     privateView: { cardId, cost, effectPreview },
+ *     publicView: { silhouette: 'generic-back', label: '?', committedAt: turn },
+ *   });
+ *
+ * This requires modeling each slot as its own ECS entity (today slots live
+ * inline as `props.slots[]` on the per-seat sequence entity — no individual
+ * entity ids to attach privacy to). That refactor is bounded but non-trivial
+ * (touches commit/reveal/showdown state scripts plus the SequenceLane render
+ * slot impl) and is out of scope for the A7 platform work.
+ *
+ * Today's behavior (resolver omits cardId from `slot-committed` events,
+ * fills in on `slot-dequeued`) remains the v1-correct mechanism. When the
+ * slot-as-entity refactor lands, swap that resolver-side omission for the
+ * dual-schema call above and `delete` the placeholder fields. See spec
+ * `platform-capability-privacy.md` §"HVCD usage patterns" row
+ * "Committed-sequence slot kind / cardId before dequeue" for the exact
+ * dual-schema shape.
+ *
  * B5 — commit-history capture
  * ---------------------------
  * The commit log lives on `timeline.customData.commitLog` as

@@ -94,6 +94,21 @@ exports.StateEntered = function (ctx, state) {
 
   // TODO(B2): initialize per-seat HP/rage/blockPool from hero blueprints.
   // TODO(B2): emit MatchStartedEvent.
+
+  // Wave 4 / A7 — spawn per-seat inventory-rack ECS entities and mark them
+  // hidden so the platform's per-recipient sync pass strips them from the
+  // opponent's snapshot. This replaces the v1 Layer-1 render-null pattern
+  // (see scripts/slots/InventoryRack.tsx header).
+  //
+  // Data placement note: the rack entity's `customData.items` is the
+  // post-A7 home for per-rack item state. The current InventoryRack slot
+  // impl still derives item state by replaying resolver events; that path
+  // continues to work because the events still include `match-started` /
+  // `item-returned-to-inventory` events. Future cleanup will move that
+  // state onto the entity's customData and rely solely on the per-recipient
+  // snapshot for opponent privacy. See InventoryRack.tsx TODO(post-A7).
+  ensureInventoryRackMs(ctx, world, 'p1');
+  ensureInventoryRackMs(ctx, world, 'p2');
 };
 
 exports.StateUpdate = function (ctx, dt, state) {
@@ -142,4 +157,52 @@ function findPerSeatMs(world, subtype, seatId) {
   if (iter.forEach) iter.forEach(consider);
   else for (var i = 0; i < iter.length; i++) consider(iter[i]);
   return found;
+}
+
+/**
+ * Wave 4 / A7 — ensure a per-seat inventory-rack entity exists and is marked
+ * hidden so only the owner's snapshot includes it. Idempotent: if a rack
+ * entity for this seat is already present, just (re)apply the privacy mode
+ * (idempotent on the platform side too).
+ *
+ * This helper deliberately uses `customData.items` as the future state home;
+ * for now it spawns an empty array, and the existing `useEventStream`
+ * reducer in InventoryRack.tsx remains the source of render data. The
+ * privacy guarantee is that the entity itself is stripped from the
+ * opponent's snapshot.
+ */
+function ensureInventoryRackMs(ctx, world, seatId) {
+  if (!world) return;
+  var existing = findPerSeatMs(world, 'hvcd.inventoryRack', seatId);
+  var entityId = existing && (existing.entityId || existing.id);
+  if (!existing) {
+    // Sandboxed scripts spawn entities through ctx.world.spawnEntity (Track
+    // B2-shaped API) — when unavailable (early boot, tests), we degrade to
+    // a metadata-only object pushed onto world.entities so the rest of the
+    // sandbox helpers see it. The platform-side privacy call still happens
+    // below; setEntityPrivacy on a non-numeric id is a no-op + warn.
+    var record = {
+      kind: 'hvcd.inventoryRack',
+      subtype: 'hvcd.inventoryRack',
+      label: seatId + ' Inventory Rack',
+      owner: seatId,
+      props: { ownerSeat: seatId },
+      customData: { items: [] },
+    };
+    if (world.spawnEntity && typeof world.spawnEntity === 'function') {
+      var spawned = world.spawnEntity(record);
+      entityId = spawned && (spawned.entityId || spawned.id);
+    } else if (world.entities && typeof world.entities.push === 'function') {
+      world.entities.push(record);
+    }
+  }
+
+  // Apply A7 privacy. The platform's authority check no-ops if this script
+  // runs on a non-authority client. Idempotent — same-mode calls are dropped.
+  var api = ctx && ctx.api;
+  if (api && typeof api.setEntityPrivacy === 'function' && typeof entityId === 'number') {
+    api.setEntityPrivacy(entityId, { mode: 'hidden', ownerSeat: seatId });
+  } else {
+    ctx && ctx.log && ctx.log('hvcd:a7:setEntityPrivacy-unavailable', seatId);
+  }
 }
