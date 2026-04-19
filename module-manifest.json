@@ -7,7 +7,7 @@
   "platform": {
     "min": ">=0.0.0"
   },
-  "contractsCommitSha": "fd5ba81",
+  "contractsCommitSha": "501de0d",
   "entrypoints": {
     "bundle": "https://raw.githubusercontent.com/yugao-gaos/TTL-HeroVersusCardDuel/main/dist/module-bundle.js",
     "remotionComposition": "scripts/monitor/MonitorComposition.tsx"
