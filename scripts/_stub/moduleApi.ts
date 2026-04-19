@@ -154,11 +154,42 @@ export type RendererSlotImpl<P extends BaseSlotProps = BaseSlotProps> = Componen
 // Mirrors the `ModuleRegisterApi` shape from game-module-manifest.md.
 // -----------------------------------------------------------------------------
 
+/**
+ * Platform end-game capability — mirrors PlatformEndGameApi in the real
+ * ModuleApi (see TabletopLabs `src/module-host/types.ts`). Exposed via
+ * `api.platform` (mount-time) and re-exposed onto sandboxed state-script
+ * `ctx.platform` (per Wave 4 ScriptContext extension) so per-tick state
+ * scripts can trigger signed, server-to-server outbound POSTs to the
+ * project's allow-listed callback URL per session-api.md § End-game
+ * capability.
+ */
+export interface PlatformEndGameApi {
+  endGame(args: {
+    callbackUrl: string;
+    payload: unknown;
+    idempotencyKey?: string;
+  }): Promise<{ accepted: true; attemptId: string }>;
+  /**
+   * Returns the project-configured callback URL (per session-api.md §
+   * Callback URL allowlist). Modules should NOT hardcode the URL —
+   * the platform owns the allowlist + project-dashboard configuration.
+   */
+  getCallbackUrl(): string;
+}
+
+export type PlatformApi = PlatformEndGameApi;
+
 export interface ModuleApi {
   registerRendererSlot<P extends BaseSlotProps>(
     slotId: string,
     component: RendererSlotImpl<P>,
   ): void;
+  /**
+   * Platform capabilities — currently the end-game capability. HVCD's
+   * scripts/states/match-end.ts calls `api.platform.endGame(...)` from
+   * the terminal state.
+   */
+  platform: PlatformApi;
   // Other register* methods exist on the real surface; slot impls don't use them.
 }
 
