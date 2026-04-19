@@ -88,6 +88,25 @@ function emit(ctx, ev) {
   var bus = ctx.world && (ctx.world.events || ctx.world.eventBus);
   if (bus && typeof bus.emit === 'function') bus.emit('resolverEvents', ev);
   else ctx.log('hvcd:event', ev.kind);
+  // Tee into timeline.customData.eventLog so match-end's replay artifact
+  // captures lifecycle events (turn-ended / match-ended) emitted from this
+  // state. Mirrors the showdown / commit teeing paths.
+  var timeline = findSingleton(ctx.world, 'hvcd.timeline');
+  appendEventLogPe(timeline, ev);
+}
+
+var EVENT_LOG_CAP_PE = 10000;
+function appendEventLogPe(timeline, event) {
+  if (!timeline || !event) return;
+  timeline.customData = timeline.customData || {};
+  if (!Array.isArray(timeline.customData.eventLog)) {
+    timeline.customData.eventLog = [];
+  }
+  if (timeline.customData.eventLog.length >= EVENT_LOG_CAP_PE) {
+    timeline.customData.eventLogTruncated = true;
+    return;
+  }
+  timeline.customData.eventLog.push(event);
 }
 
 function dispatch(ctx, type, payload) {

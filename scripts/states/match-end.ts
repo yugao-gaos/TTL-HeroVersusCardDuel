@@ -207,6 +207,25 @@ function emitResolverEventMe(ctx, event) {
   } else {
     ctx.log('hvcd:event', event.kind);
   }
+  // Tee into timeline.customData.eventLog so the inline replay artifact's
+  // events[] field captures match-end's own match-ended emission. Without
+  // this the canonical replay would always be missing its terminal event.
+  var timeline = findSingletonMe(ctx.world, 'hvcd.timeline');
+  appendEventLogMe(timeline, event);
+}
+
+var EVENT_LOG_CAP_ME = 10000;
+function appendEventLogMe(timeline, event) {
+  if (!timeline || !event) return;
+  timeline.customData = timeline.customData || {};
+  if (!Array.isArray(timeline.customData.eventLog)) {
+    timeline.customData.eventLog = [];
+  }
+  if (timeline.customData.eventLog.length >= EVENT_LOG_CAP_ME) {
+    timeline.customData.eventLogTruncated = true;
+    return;
+  }
+  timeline.customData.eventLog.push(event);
 }
 
 /**
@@ -302,13 +321,15 @@ function buildReplayBlob(ctx, world, summary) {
       { seatId: 'p1', heroId: p1HeroId },
       { seatId: 'p2', heroId: p2HeroId },
     ],
-    // Resolver event log — match-end runs after showdown/pause-or-end so
-    // the live event stream has already been emitted by those states. We
-    // don't currently mirror it to timeline.customData (B5 captured commits
-    // only); leave as an empty list and let downstream replay tooling
-    // reconstruct from the commit log + canonical resolver. Tracked as
-    // followup TODO when replay-event capture lands.
-    events: [],
+    // Resolver event log — mirrored from `timeline.customData.eventLog` by
+    // the per-state emit teeing path (showdown / commit / pause-or-end /
+    // match-end). The inline replay artifact's events[] field is the only
+    // thing the cabinet + Remotion monitor need to replay the fight bit-for-
+    // bit (per HvcdReplayArtifact.events in session-api.md).
+    events: readEventLog(timeline),
+    // When the per-state teeing hit EVENT_LOG_CAP, the customData carries
+    // a `truncated: true` flag so downstream consumers can surface elision.
+    eventsTruncated: !!(timeline && timeline.customData && timeline.customData.eventLogTruncated),
     // Per-seat per-turn commits (B5 capture).
     turns: commits,
     // Self-describing summary for replay readers.
@@ -329,6 +350,24 @@ function buildReplayBlob(ctx, world, summary) {
  * fields are coerced to schema-valid sentinels so canonicalStringify produces
  * a stable hash even on partial / corrupted state.
  */
+/**
+ * Read the live resolver event stream off `timeline.customData.eventLog`,
+ * populated by the per-state emit teeing path (showdown / commit /
+ * pause-or-end / match-end). Returns a defensively-shaped array — non-object
+ * entries are dropped so canonicalStringify never sees garbage.
+ */
+function readEventLog(timeline) {
+  if (!timeline || !timeline.customData) return [];
+  var raw = timeline.customData.eventLog;
+  if (!Array.isArray(raw)) return [];
+  var out = [];
+  for (var i = 0; i < raw.length; i++) {
+    var e = raw[i];
+    if (e && typeof e === 'object' && typeof e.kind === 'string') out.push(e);
+  }
+  return out;
+}
+
 function readCommitLog(timeline) {
   if (!timeline || !timeline.customData) return [];
   var raw = timeline.customData.commitLog;
