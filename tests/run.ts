@@ -9,3 +9,6 @@
 import './resolve.test.ts';
 import './advanced.test.ts';
 import './commit.test.ts';
+import './items.test.ts';
+import './matchEnd.test.ts';
+import './determinism.test.ts';

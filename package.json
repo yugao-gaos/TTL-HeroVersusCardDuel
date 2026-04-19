@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "test": "node --experimental-strip-types --no-warnings tests/run.ts",
+    "test:determinism": "node --experimental-strip-types --no-warnings tests/determinism.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
