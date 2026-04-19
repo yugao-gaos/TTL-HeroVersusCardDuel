@@ -38,7 +38,17 @@
       { "slotId": "hvcd.chipTrays", "renderPhase": "event", "privacy": "public" },
       { "slotId": "hvcd.sideArea", "renderPhase": "tick", "privacy": "public" },
       { "slotId": "hvcd.inventoryRack", "renderPhase": "tick", "privacy": "owner-only" },
-      { "slotId": "hvcd.monitorMesh", "renderPhase": "event", "privacy": "public" },
+      {
+        "slotId": "hvcd.monitorMesh",
+        "renderPhase": "event",
+        "privacy": "public",
+        "mount": {
+          "type": "web-surface",
+          "url": "https://hvcd.example/monitor/:sessionId",
+          "allowedOrigins": ["https://hvcd.example"],
+          "textureFps": 30
+        }
+      },
       { "slotId": "hvcd.projectileLayer", "renderPhase": "frame", "privacy": "public" },
       { "slotId": "hvcd.avatarRig", "renderPhase": "frame", "privacy": "public" }
     ],

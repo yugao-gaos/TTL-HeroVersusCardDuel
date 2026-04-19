@@ -124,6 +124,14 @@ export interface ModuleEventsApi {
 export interface GameModuleManifest {
   moduleId: string;
   version: string;
+  declarations?: {
+    rendererSlots?: Array<{
+      slotId: string;
+      renderPhase?: string;
+      privacy?: string;
+      mount?: { type: string; url?: string; allowedOrigins?: string[] };
+    }>;
+  };
   // (Other fields are read by the platform, not by slot impls.)
 }
 
@@ -179,6 +187,20 @@ export interface PlatformEndGameApi {
 
 export type PlatformApi = PlatformEndGameApi;
 
+/** Track A10 — module → page event envelope. */
+export interface WebSurfaceOutboundMessage {
+  kind: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
+}
+
+/** Track A10 — page → module event envelope (after origin filtering). */
+export interface WebSurfaceInboundMessage {
+  kind: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
+}
+
 export interface ModuleApi {
   registerRendererSlot<P extends BaseSlotProps>(
     slotId: string,
@@ -190,6 +212,30 @@ export interface ModuleApi {
    * the terminal state.
    */
   platform: PlatformApi;
+
+  /**
+   * Track A10 — emit a structured event to the WebSurfaceMesh hosting
+   * `slotId`. No-op when the slot doesn't have a web-surface mount.
+   */
+  emitToWebSurface(slotId: string, message: WebSurfaceOutboundMessage): boolean;
+
+  /**
+   * Track A10 — subscribe to page → module messages. Off by default;
+   * gated by `mount.acceptPageMessages: true` in the manifest.
+   */
+  subscribeFromWebSurface(
+    slotId: string,
+    handler: (message: WebSurfaceInboundMessage) => void,
+  ): () => void;
+
+  /**
+   * Subscribe to platform-to-module event-log events. Currently a global
+   * fan-out; Track A4 will replace with typed per-stream subscribers.
+   */
+  subscribeToEvents<T = unknown>(handler: (event: T) => void): () => void;
+
+  /** Read access to the parsed module manifest. */
+  manifest: GameModuleManifest;
   // Other register* methods exist on the real surface; slot impls don't use them.
 }
 
