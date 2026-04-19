@@ -1,0 +1,44 @@
+# HVCD ranked (T3) Cloudflare Worker — arbitration endpoint.
+#
+# Per platform-capability-server-auth.md § T3 and OQ-21, each project runs its
+# own Cloudflare app. This file is a TEMPLATE — the operator fills in the
+# account_id / route / KV / secret bindings when standing up a new environment.
+#
+# DO NOT commit real credentials here. Secrets (HMAC key material) are bound
+# via `wrangler secret put` — see README.md.
+
+name = "hvcd-arbitrator"
+main = "src/index.ts"
+compatibility_date = "2025-01-21"
+compatibility_flags = ["nodejs_compat"]
+
+# Operator fills in. Left as a sentinel so `wrangler deploy` without config
+# fails loudly rather than silently deploying to the wrong account.
+account_id = "TODO_SET_BY_OPERATOR"
+
+# The platform posts to a stable path; the route below is the suggested
+# production mapping. Swap `herovscd.example` for the actual project domain.
+# [[routes]]
+# pattern = "arbitration.herovscd.example/*"
+# zone_name = "herovscd.example"
+
+# Secrets bound at runtime — NEVER written to this file:
+#   HVCD_HMAC_SECRET      — per-project HMAC secret shared with the platform.
+#                           Same rotation model as the end-game signing secret
+#                           (session-api.md § Per-project HMAC secret).
+#   HVCD_HMAC_KEY_ID      — current active keyId string (e.g., "v1", "v2").
+#                           The worker only accepts requests whose signature
+#                           keyId matches one of the bound active keys.
+
+[vars]
+# Non-secret config. Override per-environment.
+ARBITRATION_TIMESTAMP_DRIFT_SEC = "60"
+LOG_LEVEL = "info"
+
+# Production environment — overlay
+[env.production]
+name = "hvcd-arbitrator-prod"
+
+# Staging environment — overlay
+[env.staging]
+name = "hvcd-arbitrator-staging"

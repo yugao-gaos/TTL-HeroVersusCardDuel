@@ -63,5 +63,9 @@
       "compressed": true
     }
   },
+  "matchAuthority": {
+    "supportedTiers": ["consensus", "server-authoritative"],
+    "serverScripts": ["server/dist/worker.js"]
+  },
   "license": "proprietary"
 }
