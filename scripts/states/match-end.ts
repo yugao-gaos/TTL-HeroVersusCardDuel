@@ -45,6 +45,15 @@ exports.StateEntered = function (ctx, state) {
   var totalShowdownFrames = timeline && timeline.props && typeof timeline.props.currentFrame === 'number' ? timeline.props.currentFrame : 0;
   var turnCount = timeline && timeline.props && typeof timeline.props.turnIndex === 'number' ? timeline.props.turnIndex : 0;
 
+  // damageDealt / damageTaken: written through to counterTray.props by the
+  // damage-applied event handler. Defaults to 0 if the tracker hasn't seen
+  // any damage events. (Per HvcdMatchResult.damageDealt / damageTaken in
+  // session-api.md § HVCD-specific payload shape.)
+  var p1Dealt = p1Tray && p1Tray.props && typeof p1Tray.props.damageDealt === 'number' ? p1Tray.props.damageDealt : 0;
+  var p2Dealt = p2Tray && p2Tray.props && typeof p2Tray.props.damageDealt === 'number' ? p2Tray.props.damageDealt : 0;
+  var p1Taken = p1Tray && p1Tray.props && typeof p1Tray.props.damageTaken === 'number' ? p1Tray.props.damageTaken : 0;
+  var p2Taken = p2Tray && p2Tray.props && typeof p2Tray.props.damageTaken === 'number' ? p2Tray.props.damageTaken : 0;
+
   // Determine outcome from the same world state pause-or-end used to route
   // us here. Both seats run the same deterministic showdown so this is
   // byte-identical across seats — required for T2 consensus hashing.
@@ -73,12 +82,12 @@ exports.StateEntered = function (ctx, state) {
     outcome: outcome,
   });
 
-  // Build the inline replay blob per OQ-12 resolution. Both seats build
+  // Build the inline replay artifact per OQ-12 resolution. Both seats build
   // byte-identical payloads from byte-identical deterministic world state,
   // satisfying T2 consensus hashing. The commits[] feed comes from
   // timeline.customData.commitLog, populated each commit -> reveal edge by
   // scripts/states/commit.ts (B5).
-  var replay = buildReplayBlob(ctx, world, {
+  var replayArtifact = buildReplayBlob(ctx, world, {
     outcome: outcome,
     p1Hp: p1Hp,
     p2Hp: p2Hp,
@@ -86,18 +95,28 @@ exports.StateEntered = function (ctx, state) {
     turnCount: turnCount,
   });
 
-  // Build the canonical end-game payload. Keep fields minimal and
-  // serializable — the platform forwards this opaquely to the portal.
+  // perSeat: heroId + run-state inventoryEnd. Hero entity carries heroId
+  // on its props; run-state inventory lives on timeline.customData.runState
+  // (populated by scripts/states/match-setup.ts at run-start and updated
+  // through the match by the trigger engine).
+  var perSeat = buildPerSeat(world);
+
+  // Build the canonical end-game payload per session-api.md
+  // § HVCD-specific payload shape. The platform forwards this opaquely
+  // to the portal.
   var payload = {
     schemaVersion: 1,
     outcome: outcome,                     // 'p1' | 'p2' | 'draw' | 'abort'
     endedReason: endedReason,             // 'hp-zero' | 'concede' | 'timeout' | 'disconnect'
-    finalHp:        { p1: p1Hp,   p2: p2Hp   },
-    finalRage:      { p1: p1Rage, p2: p2Rage },
-    finalBlockPool: { p1: p1Pool, p2: p2Pool },
+    finalHp:        { p1: p1Hp,    p2: p2Hp    },
+    finalRage:      { p1: p1Rage,  p2: p2Rage  },
+    finalBlockPool: { p1: p1Pool,  p2: p2Pool  },
+    damageDealt:    { p1: p1Dealt, p2: p2Dealt },
+    damageTaken:    { p1: p1Taken, p2: p2Taken },
     totalShowdownFrames: totalShowdownFrames,
     turnCount: turnCount,
-    replay: replay,
+    perSeat: perSeat,
+    replay: { shape: 'inline', artifact: replayArtifact },
   };
 
   // Fire ctx.platform.endGame. Platform is not wired in design-time / test
@@ -111,11 +130,16 @@ exports.StateEntered = function (ctx, state) {
   var callbackUrl = platform.getCallbackUrl();
 
   // Idempotency key must be stable across both seats (T2 consensus dedupes
-  // retries from the same seat on the platform side). Derive a content-stable
-  // key from the canonical payload so honest play on both seats lands on the
-  // same key. Same-content = same key = safe dedupe.
+  // retries from the same seat on the platform side). Prefer the sessionId
+  // when the host wires it (matches the canonical `${sessionId}-end` shape
+  // from the task spec); fall back to a content-stable key derived from the
+  // payload so honest play on both seats lands on the same key when no
+  // sessionId is available.
   var canonical = canonicalStringify(payload);
-  var idempotencyKey = 'hvcd::' + outcome + '::' + totalShowdownFrames + '::' + turnCount + '::' + p1Hp + '::' + p2Hp;
+  var sessionId = (ctx && ctx.session && typeof ctx.session.id === 'string') ? ctx.session.id : null;
+  var idempotencyKey = sessionId
+    ? (sessionId + '-end')
+    : ('hvcd::' + outcome + '::' + totalShowdownFrames + '::' + turnCount + '::' + p1Hp + '::' + p2Hp);
 
   // Fire-and-forget per task spec: platform's edge-fn ack resolves
   // asynchronously and the terminal state has nothing to do with the
@@ -249,20 +273,50 @@ function buildReplayBlob(ctx, world, summary) {
   // canonical hash inputs are stable even if upstream pushes extra fields.
   var commits = readCommitLog(timeline);
 
+  // Per session-api.md § HVCD-specific payload shape, the inline replay
+  // artifact uses the canonical `HvcdReplayArtifact` shape — schemaVersion
+  // / format / pin / session / seats / events / turns. The legacy
+  // moduleRepo / matchConfig / commits keys are folded into the new
+  // schema (matchConfig dropped — heroes go on `seats`; commits become
+  // `turns`).
+  var sessionId = (ctx && ctx.session && typeof ctx.session.id === 'string') ? ctx.session.id : null;
   return {
-    moduleRepo: moduleRepo,
-    moduleVersion: moduleVersion,
-    matchConfig: {
-      heroes: { p1: p1HeroId, p2: p2HeroId },
-      mode: 'casual',
-      seats: ['p1', 'p2'],
+    schemaVersion: 1,
+    format: 'hvcd-replay@v1',
+    pin: {
+      moduleId: 'hvcd',
+      moduleVersion: moduleVersion,
+      commitSha: typeof manifest.commitSha === 'string' ? manifest.commitSha : null,
+      contractsCommitSha: typeof manifest.contractsCommitSha === 'string' ? manifest.contractsCommitSha : null,
+      platformVersion: typeof manifest.platformVersion === 'string' ? manifest.platformVersion : null,
+      // Provenance of the source repo for downstream debug / dashboard use.
+      moduleRepo: moduleRepo,
     },
-    rngSeed: rngSeed,
-    commits: commits,
-    metadata: {
+    session: {
+      sessionId: sessionId,
       startedAt: startedAt,
       endedAt: endedAt,
+      rngSeed: rngSeed,
+    },
+    seats: [
+      { seatId: 'p1', heroId: p1HeroId },
+      { seatId: 'p2', heroId: p2HeroId },
+    ],
+    // Resolver event log — match-end runs after showdown/pause-or-end so
+    // the live event stream has already been emitted by those states. We
+    // don't currently mirror it to timeline.customData (B5 captured commits
+    // only); leave as an empty list and let downstream replay tooling
+    // reconstruct from the commit log + canonical resolver. Tracked as
+    // followup TODO when replay-event capture lands.
+    events: [],
+    // Per-seat per-turn commits (B5 capture).
+    turns: commits,
+    // Self-describing summary for replay readers.
+    result: {
       outcome: summary.outcome,
+      finalHp: { p1: summary.p1Hp, p2: summary.p2Hp },
+      totalShowdownFrames: summary.totalShowdownFrames,
+      turnCount: summary.turnCount,
     },
   };
 }
@@ -287,6 +341,60 @@ function readCommitLog(timeline) {
       seat: e.seat === 'p1' || e.seat === 'p2' ? e.seat : 'p1',
       slots: Array.isArray(e.slots) ? e.slots : [],
     };
+  }
+  return out;
+}
+
+/**
+ * Build the `perSeat` slice of HvcdMatchResult — heroId + inventoryEnd
+ * (+ optional deckDelta when roguelike pickups land).
+ *
+ * heroId comes from the hvcd.hero entity per seat. inventoryEnd comes from
+ * the per-run inventory snapshot stored on `timeline.customData.runState`
+ * (populated and updated by scripts/items/triggers.ts via match-setup +
+ * commit + pause-or-end). When no run state is present (legacy match
+ * without items wired), falls back to an empty inventory — keeps the
+ * payload schema-valid even on partially-bound modules.
+ */
+function buildPerSeat(world) {
+  var p1Hero = findPerSeatMe(world, 'hvcd.hero', 'p1');
+  var p2Hero = findPerSeatMe(world, 'hvcd.hero', 'p2');
+  var p1HeroId = p1Hero && p1Hero.props && typeof p1Hero.props.heroId === 'string'
+    ? p1Hero.props.heroId
+    : (p1Hero && p1Hero.props && typeof p1Hero.props.slug === 'string' ? p1Hero.props.slug : 'unknown');
+  var p2HeroId = p2Hero && p2Hero.props && typeof p2Hero.props.heroId === 'string'
+    ? p2Hero.props.heroId
+    : (p2Hero && p2Hero.props && typeof p2Hero.props.slug === 'string' ? p2Hero.props.slug : 'unknown');
+
+  var timeline = findSingletonMe(world, 'hvcd.timeline');
+  var runState = (timeline && timeline.customData && timeline.customData.runState) || null;
+  var p1Inv = readInventoryEnd(runState, 'p1');
+  var p2Inv = readInventoryEnd(runState, 'p2');
+
+  return {
+    p1: { heroId: p1HeroId, inventoryEnd: p1Inv },
+    p2: { heroId: p2HeroId, inventoryEnd: p2Inv },
+  };
+}
+
+/**
+ * Read a seat's inventoryEnd from the runState slice. `usages` mirrors
+ * `chargesRemaining` (null for passives). Defensively shape entries so a
+ * partial / corrupted runState produces a schema-valid empty list rather
+ * than crashing the end-game payload build.
+ */
+function readInventoryEnd(runState, seatId) {
+  if (!runState || !runState.seats || !runState.seats[seatId]) return [];
+  var raw = runState.seats[seatId].runItems;
+  if (!Array.isArray(raw)) return [];
+  var out = [];
+  for (var i = 0; i < raw.length; i++) {
+    var e = raw[i] || {};
+    if (typeof e.itemId !== 'string') continue;
+    out.push({
+      itemId: e.itemId,
+      usages: typeof e.chargesRemaining === 'number' ? e.chargesRemaining : null,
+    });
   }
   return out;
 }

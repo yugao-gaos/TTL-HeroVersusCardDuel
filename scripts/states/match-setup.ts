@@ -1,19 +1,80 @@
 /**
  * HVCD state: match-setup
  *
- * Entry point for a new match. Initializes per-seat state (HP, rage, block pool),
- * draws the opening hand, then transitions automatically into the first commit phase.
+ * Entry point for a new match. Initializes per-seat state (HP, rage, block
+ * pool), draws the opening hand, then transitions automatically into the
+ * first commit phase.
  *
- * STUB — no resolver logic yet. Track B2 will populate:
- *   - Reset seat HP to hero.baseHp (see config/objects/heroes/*.json).
- *   - Reset rage to hero.baseRage (0 for all starter heroes).
- *   - Reset block pool to 6 (per combat-system.md §2).
- *   - Shuffle each seat's deck and draw HAND_SIZE (5) cards.
- *   - Emit MatchStartedEvent per hvcd-tabletop-contracts/event-log-schema.md.
+ * # Wave 4 / B10 — Hero starter items at run-start
+ *
+ * On the **first match of a run**, this state seeds
+ * `timeline.customData.runState` with a fresh per-hero RunState (see
+ * scripts/items/triggers.ts `createRunState`). Each seat's hero-locked
+ * starter item (see scripts/items/catalog.ts `getHeroStarterItem`) is
+ * granted automatically — Blaze -> ignite, Volt -> taser, Aqua -> flask.
+ *
+ * Items earned mid-run via roguelike pickups go through a separate (TODO)
+ * acquisition flow — out of scope for B10.
+ *
+ * On subsequent matches in the same run, the existing runState is preserved
+ * (charges from previous matches carry over). The `matchIndex` field is
+ * bumped so trigger handlers can distinguish first-of-run vs ongoing.
+ *
+ * STUB — resolver-side seat init still pending (Track B2). The slot-binding
+ * for hand draw / HP reset will land alongside the fuller deck pipeline; for
+ * now this state focuses on run-state hydration and per-hero starter-item
+ * grants so the items system has correct seed data.
  */
+// @ts-ignore — sibling pure module imported via require for parity with the
+// other state scripts (loader uses CommonJS for sandboxed scripts).
+// Defensive import: tests may stub require to return {}; in that case we
+// degrade to a noop createRunState rather than crashing the state.
+var triggersMod = (function () {
+  try { return require('../items/triggers'); } catch (_e) { return {}; }
+})();
+function defaultCreateRunState(p1Hero, p2Hero) {
+  return {
+    seats: {
+      p1: { heroId: p1Hero, runItems: [], firstCardThisRound: true, burnTokens: 0 },
+      p2: { heroId: p2Hero, runItems: [], firstCardThisRound: true, burnTokens: 0 },
+    },
+    matchIndex: 0,
+  };
+}
+
 exports.StateEntered = function (ctx, state) {
   ctx.log('hvcd:state-entered', state.id);
-  // TODO(B2): initialize per-seat state from hero blueprints.
+
+  var world = ctx && ctx.world;
+  var timeline = findSingletonMs(world, 'hvcd.timeline');
+  if (!timeline) {
+    ctx.log('hvcd:match-setup:no-timeline', 'skipping run-state hydration');
+    return;
+  }
+  timeline.customData = timeline.customData || {};
+
+  // If a runState already exists (continuing run), bump the matchIndex and
+  // skip starter-item grants. Otherwise build a fresh RunState from each
+  // hero's slug.
+  if (timeline.customData.runState && timeline.customData.runState.seats) {
+    timeline.customData.runState.matchIndex =
+      (timeline.customData.runState.matchIndex || 0) + 1;
+    return;
+  }
+
+  var p1Hero = findPerSeatMs(world, 'hvcd.hero', 'p1');
+  var p2Hero = findPerSeatMs(world, 'hvcd.hero', 'p2');
+  var p1Slug = (p1Hero && p1Hero.props && typeof p1Hero.props.slug === 'string') ? p1Hero.props.slug : 'unknown';
+  var p2Slug = (p2Hero && p2Hero.props && typeof p2Hero.props.slug === 'string') ? p2Hero.props.slug : 'unknown';
+
+  // Build the run state via the pure factory; both seats deterministically
+  // get their hero's starter item (B10).
+  var createRunState = (typeof triggersMod.createRunState === 'function')
+    ? triggersMod.createRunState
+    : defaultCreateRunState;
+  timeline.customData.runState = createRunState(p1Slug, p2Slug);
+
+  // TODO(B2): initialize per-seat HP/rage/blockPool from hero blueprints.
   // TODO(B2): emit MatchStartedEvent.
 };
 
@@ -28,3 +89,30 @@ exports.StateExit = function (ctx, state) {
 exports.StateInput = function (input, ctx, state) {
   // no player input is consumed during match-setup.
 };
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function findSingletonMs(world, subtype) {
+  if (!world || !world.entities) return null;
+  var iter = world.entities.all ? world.entities.all() : world.entities;
+  var found = null;
+  if (iter.forEach) iter.forEach(function (e) { if (!found && e.subtype === subtype) found = e; });
+  else for (var i = 0; i < iter.length; i++) if (iter[i].subtype === subtype) { found = iter[i]; break; }
+  return found;
+}
+
+function findPerSeatMs(world, subtype, seatId) {
+  if (!world || !world.entities) return null;
+  var iter = world.entities.all ? world.entities.all() : world.entities;
+  var found = null;
+  var consider = function (e) {
+    if (found || e.subtype !== subtype) return;
+    var ownerSeat = (e.props && e.props.ownerSeat) || e.owner;
+    if (ownerSeat === seatId) found = e;
+  };
+  if (iter.forEach) iter.forEach(consider);
+  else for (var i = 0; i < iter.length; i++) consider(iter[i]);
+  return found;
+}
