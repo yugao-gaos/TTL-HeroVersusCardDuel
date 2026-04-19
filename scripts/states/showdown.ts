@@ -59,10 +59,23 @@ exports.StateEntered = function (ctx, state) {
   // Run the showdown in one pass.
   var result = timelineScript.runShowdown(ctx, timeline.id, lookup, [seat0, seat1]);
 
-  // Emit the event log — resolver events onto the shared event bus.
+  // Emit the event log — resolver events onto the shared event bus, AND
+  // tee each event into `timeline.customData.eventLog` so match-end can
+  // mirror them into the inline replay artifact's `events[]` field.
+  // (Replay-event capture follow-up: the bus is fire-and-forget; without
+  // teeing, post-showdown consumers like match-end can't reconstruct the
+  // event stream. Per HvcdReplayArtifact.events in session-api.md.)
   for (var i = 0; i < result.events.length; i++) {
     var ev = result.events[i];
     emitResolverEvent(ctx, ev);
+    appendEventLog(timeline, ev);
+    // Damage accumulator: damage-applied carries `seat` (target/victim) +
+    // `attackerSeat` + `amount`. Mirror running totals onto the per-seat
+    // counterTray.props so match-end can read damageDealt / damageTaken
+    // straight off the tray (matches the HvcdMatchResult shape).
+    if (ev && ev.kind === 'damage-applied' && typeof ev.amount === 'number' && ev.amount > 0) {
+      accumulateDamage(world, ev.attackerSeat, ev.seat, ev.amount);
+    }
   }
 
   // Write back to ECS.
@@ -163,5 +176,54 @@ function emitResolverEvent(ctx, event) {
   } else {
     // Fallback: log for debugging
     ctx.log('hvcd:event', event.kind, JSON.stringify(event).slice(0, 200));
+  }
+}
+
+/**
+ * Append a resolver event to `timeline.customData.eventLog`. Capped at
+ * EVENT_LOG_CAP entries — once the cap is hit, subsequent events are dropped
+ * and a `truncated: true` flag is set on customData so downstream consumers
+ * can surface the elision. Per asset-protocol.md the canonical replay format
+ * targets 5-15 KB gzipped, so the 10K cap is a defensive ceiling against
+ * runaway match lengths rather than a tight budget.
+ */
+var EVENT_LOG_CAP = 10000;
+function appendEventLog(timeline, event) {
+  if (!timeline || !event) return;
+  timeline.customData = timeline.customData || {};
+  if (!Array.isArray(timeline.customData.eventLog)) {
+    timeline.customData.eventLog = [];
+  }
+  if (timeline.customData.eventLog.length >= EVENT_LOG_CAP) {
+    timeline.customData.eventLogTruncated = true;
+    return;
+  }
+  timeline.customData.eventLog.push(event);
+}
+
+/**
+ * Per-seat damage accumulator. Writes through to counterTray.props so
+ * match-end can read damageDealt / damageTaken without re-walking the event
+ * log. Both seats run the same deterministic showdown so the totals match
+ * across hosts (T2 consensus precondition).
+ */
+function accumulateDamage(world, attackerSeat, victimSeat, amount) {
+  if (!world || !world.entities) return;
+  if (typeof amount !== 'number' || amount <= 0) return;
+  var iter = world.entities.all ? world.entities.all() : world.entities;
+  var trays = [];
+  if (iter.forEach) iter.forEach(function (e) { if (e && e.subtype === 'hvcd.counterTray') trays.push(e); });
+  else for (var i = 0; i < iter.length; i++) if (iter[i] && iter[i].subtype === 'hvcd.counterTray') trays.push(iter[i]);
+  for (var j = 0; j < trays.length; j++) {
+    var t = trays[j];
+    var ownerSeat = (t.props && t.props.ownerSeat) || t.owner;
+    if (ownerSeat === attackerSeat && attackerSeat !== victimSeat) {
+      t.props = t.props || {};
+      t.props.damageDealt = (typeof t.props.damageDealt === 'number' ? t.props.damageDealt : 0) + amount;
+    }
+    if (ownerSeat === victimSeat) {
+      t.props = t.props || {};
+      t.props.damageTaken = (typeof t.props.damageTaken === 'number' ? t.props.damageTaken : 0) + amount;
+    }
   }
 }

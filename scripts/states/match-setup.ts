@@ -53,6 +53,24 @@ exports.StateEntered = function (ctx, state) {
   }
   timeline.customData = timeline.customData || {};
 
+  // Reset the per-match capture buffers so a fresh match starts with empty
+  // commit + event logs (the per-state teeing path appends to these during
+  // the match; match-end reads them into the inline replay artifact).
+  timeline.customData.commitLog = [];
+  timeline.customData.eventLog = [];
+  timeline.customData.eventLogTruncated = false;
+
+  // Reset per-seat damage accumulators on the counter trays. The accumulator
+  // (showdown.ts `accumulateDamage`) sums damage-applied events into these
+  // fields; match-end reads them into HvcdMatchResult.damageDealt /
+  // damageTaken. They're per-match, not per-run, so reset on each match-setup.
+  var trays = findAllMs(world, 'hvcd.counterTray');
+  for (var t = 0; t < trays.length; t++) {
+    trays[t].props = trays[t].props || {};
+    trays[t].props.damageDealt = 0;
+    trays[t].props.damageTaken = 0;
+  }
+
   // If a runState already exists (continuing run), bump the matchIndex and
   // skip starter-item grants. Otherwise build a fresh RunState from each
   // hero's slug.
@@ -101,6 +119,15 @@ function findSingletonMs(world, subtype) {
   if (iter.forEach) iter.forEach(function (e) { if (!found && e.subtype === subtype) found = e; });
   else for (var i = 0; i < iter.length; i++) if (iter[i].subtype === subtype) { found = iter[i]; break; }
   return found;
+}
+
+function findAllMs(world, subtype) {
+  var out = [];
+  if (!world || !world.entities) return out;
+  var iter = world.entities.all ? world.entities.all() : world.entities;
+  if (iter.forEach) iter.forEach(function (e) { if (e && e.subtype === subtype) out.push(e); });
+  else for (var i = 0; i < iter.length; i++) if (iter[i] && iter[i].subtype === subtype) out.push(iter[i]);
+  return out;
 }
 
 function findPerSeatMs(world, subtype, seatId) {

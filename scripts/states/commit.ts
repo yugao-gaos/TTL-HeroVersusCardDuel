@@ -231,4 +231,24 @@ function emitResolverEventCo(ctx, event) {
   } else {
     ctx.log('hvcd:event', event.kind);
   }
+  // Tee into timeline.customData.eventLog so match-end can mirror the
+  // full live event stream into the inline replay artifact (events[]).
+  // commit-phase events (`slot-committed`) are part of the replay too —
+  // they reconstruct what each seat locked in per turn.
+  var timeline = findSingletonCo(ctx.world, 'hvcd.timeline');
+  appendEventLogCo(timeline, event);
+}
+
+var EVENT_LOG_CAP_CO = 10000;
+function appendEventLogCo(timeline, event) {
+  if (!timeline || !event) return;
+  timeline.customData = timeline.customData || {};
+  if (!Array.isArray(timeline.customData.eventLog)) {
+    timeline.customData.eventLog = [];
+  }
+  if (timeline.customData.eventLog.length >= EVENT_LOG_CAP_CO) {
+    timeline.customData.eventLogTruncated = true;
+    return;
+  }
+  timeline.customData.eventLog.push(event);
 }

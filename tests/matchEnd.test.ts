@@ -179,6 +179,14 @@ console.log('\nB7 — match-end fires platform.endGame with HvcdMatchResult shap
 test('match-end calls platform.endGame with all required HvcdMatchResult fields', () => {
   const w = buildWorld({ p1Hp: 14, p2Hp: 0, p1Slug: 'blaze', p2Slug: 'aqua', withRunState: true });
   matchSetup.StateEntered!(w.ctx, { id: 'match-setup' });
+  // match-setup zeros the per-tray damage accumulators (the live showdown
+  // path is what actually populates them via the damage-applied tee path).
+  // Re-seed here so this fixture exercises the read-side of match-end.
+  const trays = w.entities.filter((e) => e.subtype === 'hvcd.counterTray');
+  const t1 = trays.find((e) => (e.props as any).ownerSeat === 'p1')!;
+  const t2 = trays.find((e) => (e.props as any).ownerSeat === 'p2')!;
+  (t1.props as any).damageDealt = 9; (t1.props as any).damageTaken = 7;
+  (t2.props as any).damageDealt = 7; (t2.props as any).damageTaken = 9;
   matchEnd.StateEntered!(w.ctx, { id: 'match-end' });
 
   assert(w.platform.endGameCalls.length === 1, `endGame called once, got ${w.platform.endGameCalls.length}`);
@@ -244,6 +252,159 @@ test('match-end skips endGame when ctx.platform is unbound', () => {
   // Should not throw.
   matchEnd.StateEntered!(w.ctx, { id: 'match-end' });
   assert(w.platform.endGameCalls.length === 0, 'no calls when platform missing');
+});
+
+console.log('\nWave 4 polish — resolver event tee + damage-counter accumulator');
+
+// Load the showdown sandbox with stubs for the runShowdown deps so we can
+// exercise the event-tee + damage-accumulator paths in isolation. Each test
+// supplies an `events` array via the timelineScript stub; the showdown
+// state-script forwards them through the bus AND tees into customData.
+function loadShowdownWithStubEvents(events: unknown[]) {
+  const timelineScriptStub = {
+    runShowdown(_ctx: unknown, _id: unknown, _lookup: unknown, _seats: unknown[]) {
+      return {
+        events: events,
+        finalState: {
+          frame: 100,
+          tokens: [],
+          projectiles: [],
+          effects: [],
+          seats: [
+            { hp: 10, rage: 0, blockPool: 6, inventory: [], sequence: [], cursor: 0 },
+            { hp: 6,  rage: 0, blockPool: 6, inventory: [], sequence: [], cursor: 0 },
+          ],
+        },
+        endReason: 'window-empty',
+        ko: false,
+        draw: false,
+      };
+    },
+  };
+  const noopWriteBack = { writeBack: () => {} };
+  const seqStub = {
+    buildSeatState: () => ({}),
+    writeBack: () => {},
+  };
+  const cardKindStub = { lookupCard: () => null };
+  return loadSandboxed('scripts/states/showdown.ts', {
+    '../objects/timeline': timelineScriptStub,
+    '../objects/sequence': seqStub,
+    '../objects/counterTray': noopWriteBack,
+    '../objects/sideArea': noopWriteBack,
+    '../kinds/card': cardKindStub,
+  });
+}
+
+function buildWorldWithSequenceAndSideArea(opts: { p1Hp: number; p2Hp: number }) {
+  const base = buildWorld({ p1Hp: opts.p1Hp, p2Hp: opts.p2Hp, withRunState: true });
+  base.entities.push({ subtype: 'hvcd.sequence', props: { ownerSeat: 'p1', slots: [], cursor: 0 } });
+  base.entities.push({ subtype: 'hvcd.sequence', props: { ownerSeat: 'p2', slots: [], cursor: 0 } });
+  base.entities.push({ subtype: 'hvcd.sideArea', props: { ownerSeat: 'p1' } });
+  base.entities.push({ subtype: 'hvcd.sideArea', props: { ownerSeat: 'p2' } });
+  return base;
+}
+
+test('showdown tees resolver events into timeline.customData.eventLog', () => {
+  const events = [
+    { kind: 'showdown-started', atGlobalFrame: 0 },
+    { kind: 'cursor-advanced', toFrame: 5 },
+    { kind: 'damage-applied', seat: 'p2', amount: 3, hpBefore: 16, hpAfter: 13, attackerSeat: 'p1', attackKind: 'hit', cardId: 'jab', atGlobalFrame: 5 },
+  ];
+  const w = buildWorldWithSequenceAndSideArea({ p1Hp: 16, p2Hp: 16 });
+  matchSetup.StateEntered!(w.ctx, { id: 'match-setup' });
+  const showdown = loadShowdownWithStubEvents(events);
+  showdown.StateEntered!(w.ctx, { id: 'showdown' });
+
+  const tl = w.entities.find((e) => e.subtype === 'hvcd.timeline')!;
+  const log = (tl.customData as any).eventLog as unknown[];
+  assert(Array.isArray(log) && log.length === 3, `eventLog has 3 entries, got ${log && (log as any).length}`);
+  assert((log[0] as any).kind === 'showdown-started', 'first event preserved');
+  assert((log[2] as any).kind === 'damage-applied', 'damage event preserved');
+});
+
+test('showdown accumulates damage-applied into per-seat counterTray props', () => {
+  const events = [
+    { kind: 'damage-applied', seat: 'p2', amount: 3, hpBefore: 16, hpAfter: 13, attackerSeat: 'p1', attackKind: 'hit', cardId: 'jab', atGlobalFrame: 5 },
+    { kind: 'damage-applied', seat: 'p2', amount: 2, hpBefore: 13, hpAfter: 11, attackerSeat: 'p1', attackKind: 'hit', cardId: 'kick', atGlobalFrame: 10 },
+    { kind: 'damage-applied', seat: 'p1', amount: 4, hpBefore: 16, hpAfter: 12, attackerSeat: 'p2', attackKind: 'hit', cardId: 'punch', atGlobalFrame: 15 },
+  ];
+  const w = buildWorldWithSequenceAndSideArea({ p1Hp: 16, p2Hp: 16 });
+  matchSetup.StateEntered!(w.ctx, { id: 'match-setup' });
+  const showdown = loadShowdownWithStubEvents(events);
+  showdown.StateEntered!(w.ctx, { id: 'showdown' });
+
+  const trays = w.entities.filter((e) => e.subtype === 'hvcd.counterTray');
+  const t1 = trays.find((e) => (e.props as any).ownerSeat === 'p1')!;
+  const t2 = trays.find((e) => (e.props as any).ownerSeat === 'p2')!;
+  assert((t1.props as any).damageDealt === 5, `p1 damageDealt=5, got ${(t1.props as any).damageDealt}`);
+  assert((t1.props as any).damageTaken === 4, `p1 damageTaken=4, got ${(t1.props as any).damageTaken}`);
+  assert((t2.props as any).damageDealt === 4, `p2 damageDealt=4, got ${(t2.props as any).damageDealt}`);
+  assert((t2.props as any).damageTaken === 5, `p2 damageTaken=5, got ${(t2.props as any).damageTaken}`);
+});
+
+test('match-setup resets eventLog + damage counters between matches', () => {
+  const w = buildWorldWithSequenceAndSideArea({ p1Hp: 16, p2Hp: 16 });
+  // Stale data from a hypothetical previous match.
+  const tl = w.entities.find((e) => e.subtype === 'hvcd.timeline')!;
+  tl.customData = { eventLog: [{ kind: 'old' }], commitLog: [{ turn: 0 }], eventLogTruncated: true };
+  const trays = w.entities.filter((e) => e.subtype === 'hvcd.counterTray');
+  trays.forEach((t) => { (t.props as any).damageDealt = 99; (t.props as any).damageTaken = 99; });
+
+  matchSetup.StateEntered!(w.ctx, { id: 'match-setup' });
+
+  assert(((tl.customData as any).eventLog as unknown[]).length === 0, 'eventLog cleared');
+  assert(((tl.customData as any).commitLog as unknown[]).length === 0, 'commitLog cleared');
+  assert((tl.customData as any).eventLogTruncated === false, 'truncated flag cleared');
+  trays.forEach((t) => {
+    assert((t.props as any).damageDealt === 0, `${(t.props as any).ownerSeat} damageDealt reset`);
+    assert((t.props as any).damageTaken === 0, `${(t.props as any).ownerSeat} damageTaken reset`);
+  });
+});
+
+test('match-end populates replay.events from teed eventLog and damage from accumulator', () => {
+  const events = [
+    { kind: 'showdown-started', atGlobalFrame: 0 },
+    { kind: 'damage-applied', seat: 'p2', amount: 16, hpBefore: 16, hpAfter: 0, attackerSeat: 'p1', attackKind: 'hit', cardId: 'finisher', atGlobalFrame: 50 },
+    { kind: 'ko', seat: 'p2', atGlobalFrame: 50 },
+  ];
+  const w = buildWorldWithSequenceAndSideArea({ p1Hp: 16, p2Hp: 0 });
+  // Force runShowdown's stub final-state to leave the trays as the world
+  // says (counterTrayScript.writeBack is a noop in the stub).
+  matchSetup.StateEntered!(w.ctx, { id: 'match-setup' });
+  const showdown = loadShowdownWithStubEvents(events);
+  showdown.StateEntered!(w.ctx, { id: 'showdown' });
+  matchEnd.StateEntered!(w.ctx, { id: 'match-end' });
+
+  const call = w.platform.endGameCalls[0];
+  assert(!!call, 'endGame called');
+  const p = call.payload as any;
+  // damage accumulator wrote through.
+  assert(p.damageDealt.p1 === 16, `p1 damageDealt=16, got ${p.damageDealt.p1}`);
+  assert(p.damageTaken.p2 === 16, `p2 damageTaken=16, got ${p.damageTaken.p2}`);
+  // events array populated from eventLog (showdown's 3 + match-end's match-ended emit).
+  const evs = p.replay.artifact.events as Array<{ kind: string }>;
+  assert(Array.isArray(evs) && evs.length === 4, `replay events length=4, got ${evs && evs.length}`);
+  assert(evs[0].kind === 'showdown-started', 'first replay event');
+  assert(evs[1].kind === 'damage-applied', 'damage event in replay');
+  assert(evs[2].kind === 'ko', 'ko event in replay');
+  assert(evs[3].kind === 'match-ended', 'match-end teed its own match-ended');
+  assert(p.replay.artifact.eventsTruncated === false, 'no truncation flag');
+});
+
+test('eventLog respects the 10K cap and sets truncated flag', () => {
+  // Build a synthetic event stream over the cap. Use small events to keep the
+  // memory footprint reasonable in CI.
+  const events = [];
+  for (let i = 0; i < 10005; i++) events.push({ kind: 'cursor-advanced', toFrame: i });
+  const w = buildWorldWithSequenceAndSideArea({ p1Hp: 16, p2Hp: 16 });
+  matchSetup.StateEntered!(w.ctx, { id: 'match-setup' });
+  const showdown = loadShowdownWithStubEvents(events);
+  showdown.StateEntered!(w.ctx, { id: 'showdown' });
+  const tl = w.entities.find((e) => e.subtype === 'hvcd.timeline')!;
+  const log = (tl.customData as any).eventLog as unknown[];
+  assert(log.length === 10000, `eventLog capped at 10000, got ${log.length}`);
+  assert((tl.customData as any).eventLogTruncated === true, 'truncated flag set');
 });
 
 const passed = results.filter((r) => r.passed).length;
