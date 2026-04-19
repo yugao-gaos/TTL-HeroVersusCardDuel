@@ -1,16 +1,23 @@
 // hvcd.inventoryRack — per-seat, renderPhase: 'tick', privacy: 'owner-only'
 //
-// Item rack with Layer 1 privacy (ui §4a; renderer-slots.md §Privacy rule;
-// platform-capability-privacy.md — Track A7 is the post-v1 generalization).
+// Wave 4 / A7 migration:
+// ---------------------
+// Privacy enforcement is now Track A7 (`platform-capability-privacy.md`).
+// The rack ECS entity is registered with `setEntityPrivacy(rackId, {
+// mode: 'hidden', ownerSeat })` at rack creation time (see
+// `scripts/states/match-setup.ts`); the platform's per-recipient sync pass
+// strips it from the opponent's snapshot.
 //
-// v1 enforcement per OQ-18 resolution: if `isViewerSeat === false`, render
-// `null`. Acknowledged leakage: a devtools-equipped attacker can still see
-// inventory broadcast over the gameplay data channel. v2 (A7) switches this to
-// `setEntityPrivacy(id, { mode: 'hidden', ownerSeat })` and removes the guard.
+// The render component still keeps a defensive `isViewerSeat` early-return
+// as belt-and-braces: when A7 is active the opponent won't have the rack
+// entity in their world at all, so the reducer below sees no items for them
+// and this guard is redundant. It stops dead-code from running on older
+// platform builds / rollback windows before A7 applies.
 //
-// Item usage-count data should live in the per-session private KV (OQ-3) so
-// usages aren't broadcast; Wave-2 reads through world.readSeatData which is
-// the same surface A7 will keep.
+// TODO(post-A7): item usage-count data is currently still threaded through
+// resolver events (item-returned-to-inventory carries the usagesRemaining).
+// Future cleanup: model the count flag entity with `dual-schema` and an
+// empty `publicView` so usages are never on the wire even via events.
 
 import { memo, useMemo } from '@tabletoplabs/module-api';
 import type { RendererSlotImpl, PerSeatSlotProps } from '@tabletoplabs/module-api';
