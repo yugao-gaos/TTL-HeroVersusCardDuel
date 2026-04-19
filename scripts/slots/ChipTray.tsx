@@ -45,7 +45,7 @@ interface TrayState {
   seats: Record<SeatId, SeatCounters>;
 }
 
-const DEFAULT_HP = 30;
+const DEFAULT_HP = 16;
 const DEFAULT_RAGE_MAX = 20;
 const DEFAULT_POOL_MAX = 6;
 

@@ -8,7 +8,7 @@
     "props": {
       "slug": "aqua",
       "description": "Flowing counter-fighter. Reads attacks and turns them back.",
-      "baseHp": 30,
+      "baseHp": 16,
       "baseRage": 0,
       "baseBlock": 0,
       "portraitPath": null,

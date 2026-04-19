@@ -8,7 +8,7 @@
     "props": {
       "slug": "volt",
       "description": "Quick striker. Chains fast hits faster than you can react.",
-      "baseHp": 28,
+      "baseHp": 16,
       "baseRage": 0,
       "baseBlock": 0,
       "portraitPath": null,

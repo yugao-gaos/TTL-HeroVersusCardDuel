@@ -59,7 +59,7 @@ export function restoreHp(
 ): void {
   if (amount <= 0) return;
   const target = state.seats[targetIdx];
-  target.hp = Math.min(target.hp + amount, 30); // soft cap — tuning value
+  target.hp = Math.min(target.hp + amount, 16); // soft cap aligned with starting HP (Wave 4)
   events.push({
     kind: 'hp-restored',
     seat: target.id,

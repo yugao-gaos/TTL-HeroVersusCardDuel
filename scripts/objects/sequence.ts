@@ -145,7 +145,7 @@ exports.buildSeatState = function (_ctx, sequenceEntity, counterTray, heroEntity
     id: seatId,
     index: seatId === 'p1' ? 0 : 1,
     heroId: hProps.slug || '',
-    hp: typeof cProps.hp === 'number' ? cProps.hp : (hProps.baseHp || 8),
+    hp: typeof cProps.hp === 'number' ? cProps.hp : (hProps.baseHp || 16),
     rage: typeof cProps.rage === 'number' ? cProps.rage : (hProps.baseRage || 0),
     blockPool: typeof cProps.blockPool === 'number' ? cProps.blockPool : 6,
     sequence: Array.isArray(sProps.slots) ? sProps.slots.slice() : [],

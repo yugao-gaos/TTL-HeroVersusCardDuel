@@ -82,7 +82,7 @@ exports.kind = {
       traits: { grabbable: false, collidable: false },
       props: {
         ownerSeat: typeof props.ownerSeat === 'string' ? props.ownerSeat : 'p1',
-        hp: typeof props.hp === 'number' ? props.hp : 8,
+        hp: typeof props.hp === 'number' ? props.hp : 16,
         rage: typeof props.rage === 'number' ? props.rage : 0,
         blockPool: typeof props.blockPool === 'number' ? props.blockPool : 6,
         inventory: Array.isArray(props.inventory) ? props.inventory : [],

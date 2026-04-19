@@ -8,7 +8,7 @@
     "props": {
       "slug": "terra",
       "description": "Stone-wall defender. Outlasts opponents behind heavy guard.",
-      "baseHp": 34,
+      "baseHp": 16,
       "baseRage": 0,
       "baseBlock": 2,
       "portraitPath": null,

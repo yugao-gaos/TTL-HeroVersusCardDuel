@@ -21,7 +21,7 @@ export interface FrameReadoutProps {
 
 const FRAME_READOUT_Z = 85;
 
-function FrameReadoutBase({ events, currentFrame, maxHp = 100 }: FrameReadoutProps) {
+function FrameReadoutBase({ events, currentFrame, maxHp = 16 }: FrameReadoutProps) {
   const readout = useMemo(
     () => selectFrameReadout(events, currentFrame),
     [events, currentFrame],

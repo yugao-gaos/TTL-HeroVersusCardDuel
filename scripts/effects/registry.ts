@@ -137,7 +137,7 @@ registerEffect('heal', {
     const target = ctx.state.seats[idx];
     const amount = (ctx.effect.payload.amount as number | undefined) ?? 5;
     const before = target.hp;
-    target.hp = Math.min(target.hp + amount, 30);
+    target.hp = Math.min(target.hp + amount, 16);
     ctx.events.push({
       kind: 'hp-restored',
       seat: target.id,

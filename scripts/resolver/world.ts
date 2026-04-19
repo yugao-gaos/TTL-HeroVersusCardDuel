@@ -65,7 +65,7 @@ export function createSeat(
     id,
     index: index as 0 | 1,
     heroId,
-    hp: opts.hp ?? 8,
+    hp: opts.hp ?? 16,
     rage: opts.rage ?? 0,
     blockPool: opts.blockPool ?? 6,
     sequence: opts.sequence ?? [],
