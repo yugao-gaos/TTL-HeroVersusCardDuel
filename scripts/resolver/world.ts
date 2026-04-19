@@ -8,7 +8,26 @@
  * This function is invoked by scripts/objects/timeline.ts's StateEntered hook
  * (which the showdown state delegates to) or by the test harness directly.
  *
- * Frame-loop ordering matches combat-system.md §5 steps 1–10.
+ * Frame-loop ordering matches combat-system.md §5 — the authoritative
+ * 11-step order per OQ-31 (fourth-pass resolution, 2026-04-18):
+ *
+ *   1. Apply standing effects
+ *   2. Advance projectile travel
+ *   3. Dequeue — places window tokens
+ *   4. Projectile arrival — pure token placement (no resolution)
+ *   5. [all tokens on this timelineFrame are placed]
+ *   6. Resolve interactions — precedence: projectile > hit, then defender
+ *      precedence (parry > evasion > block > reflect > armor > damage lands)
+ *   7. Spawn status tokens (stun / knockdown from resolutions)
+ *   8. Effect lifecycle (activations, effect-end)
+ *   9. Cancel firing (§13)
+ *  10. KO check
+ *  11. Advance cursor
+ *
+ * OQ-31's correction guarantees dequeue (step 3) + projectile arrival (step 4)
+ * always precede resolution (step 6), so a defender's block window dequeued at
+ * frame F is on the timeline before a projectile arriving at F is resolved
+ * against it.
  */
 import { cancelDefenderCard, findActiveAttackToken, processMutualClash, resolveAttack } from './combat.ts';
 import { finishActiveCardIfEnded, tryDequeue, type CardLookup } from './sequence.ts';
@@ -105,17 +124,25 @@ export function runShowdown(
 
   // === Phase 1: pre-clash scan =============================================
   while (!ended && state.frame < max && attacker === null) {
-    // Reset per-frame "once per tick" trackers (§9 reflect, §8 parry)
+    // Reset per-tick re-arming trackers (§8 parry, §9 reflect — OQ-32).
     state.reflectFiredThisFrame.clear();
     state.parryFiredThisFrame.clear();
 
-    // Step 1: apply active standing effects (per-frame hooks)
+    // --- Step 1: apply standing effects (per-frame hooks). ---
     for (const eff of state.effects) {
       const impl = getEffect(eff.effectId);
       if (impl?.onFrame) impl.onFrame({ state, effect: eff, events });
     }
 
-    // Finish ended cards + try dequeue
+    // --- Step 2: advance projectile travel. ---
+    // Projectiles carry absolute arrivalFrame so travel is implicit; no-op
+    // reserved for future per-frame travel bookkeeping per §9.
+
+    // --- Step 3: dequeue — places window tokens. ---
+    // Finish ended cards first so a newly-free seat can dequeue this frame.
+    // Per OQ-32, each card's dequeue expands its windows into timeline tokens:
+    // multi-frame single-token for hit/grab/projectile/parry/evasion/reflect/
+    // effect; per-frame tokens for block/armor; single-frame for cancel.
     for (let i = 0; i < 2; i++) {
       finishActiveCardIfEnded(state, i as SeatIndex, events);
     }
@@ -123,13 +150,12 @@ export function runShowdown(
       tryDequeue(state, i as SeatIndex, lookupCard, events);
     }
 
-    // Step 2: advance / clash projectiles
-    resolveClashes(state, events);
-
-    // Projectile launch: when the projectile window's last frame equals the
-    // current frame, spawn the in-flight token. Per OQ-32 the projectile
-    // window is one logical token spanning [frame, frameEnd]; we launch at
-    // tokenLastFrame(t).
+    // --- Step 4: projectile arrival — PURE placement. ---
+    // Launch any projectile whose launch window's last frame is the current
+    // frame (OQ-32 single-token launch window → spawn on `tokenLastFrame`).
+    // Detection of projectiles with `arrivalFrame === state.frame` is
+    // deferred to step 6's resolution pass (resolveArrivals). No
+    // damage/stun/defender-card changes here.
     for (let i = 0; i < 2; i++) {
       const seat = state.seats[i];
       if (!seat.activeCard) continue;
@@ -143,15 +169,27 @@ export function runShowdown(
       }
     }
 
-    // Step 3: resolve projectile arrivals (interrupts defender if stuns)
-    const projectileInterruptedSomeone = resolveArrivals(state, events);
+    // --- Step 5: [sentinel — all tokens on this timelineFrame are placed]. ---
+
+    // --- Step 6: resolve interactions. ---
+    // Spec precedence: projectile > hit; within each, defender precedence is
+    // parry > evasion > block > reflect > armor > damage-lands. OQ-31's
+    // fourth-pass correction guarantees dequeue (step 3) and projectile
+    // placement (step 4) have completed, so e.g. a block window dequeued at
+    // frame F is already on the timeline when a projectile arrival at F is
+    // resolved against it (prevents the fireball-at-F-hits-same-F-unplaced-
+    // block bug).
+    resolveClashes(state, events); // projectile ↔ projectile mid-flight
+    resolveArrivals(state, events); // projectile ↔ defender precedence
 
     if (anyoneKO(state, events)) { ended = true; endReason = 'ko'; ko = detectKO(state); break; }
 
-    // Step 5: attack -> defense interactions
-    // Each seat's active attack token at this frame.
-    const a0 = findActiveAttackToken(state, 0, ['hit', 'grab', 'parry']);
-    const a1 = findActiveAttackToken(state, 1, ['hit', 'grab', 'parry']);
+    // Step 6 continued — hit/grab vs defender precedence. Parry is a
+    // DEFENSE (triggers ≤1× per tick, re-arms next tick per OQ-32), not an
+    // attack — it's evaluated inside resolveAttack via findDefenderParry
+    // against incoming hits, never scanned as an outgoing attack here.
+    const a0 = findActiveAttackToken(state, 0, ['hit', 'grab']);
+    const a1 = findActiveAttackToken(state, 1, ['hit', 'grab']);
 
     if (a0 && a1) {
       // Both attacking — mutual clash (simultaneous). HVCD resolver handles
@@ -191,16 +229,22 @@ export function runShowdown(
       if (outcome.endedShowdown) { ended = true; endReason = detectKO(state) ? 'ko' : 'safety'; ko = detectKO(state); }
     }
 
-    // Step 7: effect activations
+    // --- Step 7: spawn status tokens. ---
+    // Stun / knockdown placements happen inline inside placeStun() during
+    // step 6 resolution, so step 7 is effectively folded into step 6.
+
+    // --- Step 8: effect lifecycle. ---
+    // Effect activations (fire at effect window's last frame) and effect-end
+    // tokens (terminate standing effects).
     resolveEffectActivationsAndEnds(state, events);
 
-    // Step 8: cancels
+    // --- Step 9: cancel firing (§13). ---
     resolveCancelTokens(state, events, lookupCard);
 
-    // Step 9: KO check
+    // --- Step 10: KO check. ---
     if (anyoneKO(state, events)) { ended = true; endReason = 'ko'; ko = detectKO(state); break; }
 
-    // Step 10: cursor advance
+    // --- Step 11: advance cursor. ---
     if (!ended && attacker === null) {
       const exhausted = state.seats.every((s) => !s.activeCard && s.sequence.length === 0 && !s.sideArea.some((p) => p.reason === 'standing-effect')) && state.projectiles.length === 0;
       if (exhausted) {

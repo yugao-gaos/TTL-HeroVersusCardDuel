@@ -1,9 +1,10 @@
 /**
  * HVCD resolver — attack → defense resolution
  *
- * Per combat-system.md §4 Interaction matrix + §5 frame loop step 5
- * (precedence parry > evasion > block > reflect > armor > damage) + §8
- * (parry rules).
+ * Per combat-system.md §4 Interaction matrix + §5 frame-loop step 6 per
+ * OQ-31 (precedence: projectile > hit; within each, defender precedence
+ * parry > evasion > block > reflect > armor > damage-lands) + §8 (parry
+ * rules).
  *
  * Called by scripts/objects/timeline.ts once per frame per seat in combat mode.
  */

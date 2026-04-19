@@ -5,9 +5,13 @@
  * Logic owned by scripts/objects/projectile.ts; this file contains the
  * pure-function core.
  *
- * Frame-loop ordering (§5 step 2, 3):
- *   - step 2 — advance projectiles, resolve clashes
- *   - step 3 — resolve arrivals (before card-window interactions this frame)
+ * Frame-loop ordering (§5 — OQ-31 11-step order):
+ *   - step 4 — launchProjectile fires when a projectile launch window's
+ *     last frame equals the current frame (pure placement — spawns in-flight
+ *     projectile, no resolution)
+ *   - step 6 — resolveClashes resolves projectile↔projectile mid-flight
+ *     collisions; resolveArrivals then resolves projectile↔defender
+ *     precedence (parry > evasion > block > reflect > armor > damage-lands)
  */
 import { applyDamage } from './economy.ts';
 import { applyDamageModifiers } from '../effects/registry.ts';
@@ -24,8 +28,9 @@ import type {
 import { otherSeat, seatIdOf, seatIndexOf, tokenCoversFrame } from './types.ts';
 
 /**
- * Called on a projectile attack window's last launch frame (§9 Lifecycle step 2).
- * Creates the in-flight entity + parks the source card.
+ * Called on a projectile attack window's last launch frame (frame-loop step 4
+ * per OQ-31 — pure placement, no resolution). Creates the in-flight entity +
+ * parks the source card.
  *
  * Caller (timeline frame-loop) is responsible for detecting the launch-end
  * frame and invoking this; projectile window tokens on the timeline are kept
@@ -90,7 +95,7 @@ export function launchProjectile(
 }
 
 /**
- * Frame-loop step 2: check for projectile clashes.
+ * Frame-loop step 6 (projectile↔projectile): check for projectile clashes.
  * Two opposing projectiles in flight clash if their in-flight intervals overlap.
  */
 export function resolveClashes(state: MatchState, events: ResolverEvent[]): void {
@@ -129,9 +134,13 @@ export function resolveClashes(state: MatchState, events: ResolverEvent[]): void
 }
 
 /**
- * Frame-loop step 3: resolve projectile arrivals for the current frame.
- * Returns true if any projectile stunned its target (blocks subsequent card
- * windows this frame per §5 "fireball-then-hit" rule).
+ * Frame-loop step 6 (projectile↔defender): resolve projectile arrivals for
+ * the current frame. Precedence: block > reflect > armor > damage-lands.
+ * Projectiles bypass parry and evasion per §9 (projectile > hit in OQ-31).
+ *
+ * Returns true if any projectile stunned its target (used by caller to gate
+ * subsequent card-window interactions this frame per §5 "fireball-then-hit"
+ * rule).
  */
 export function resolveArrivals(state: MatchState, events: ResolverEvent[]): boolean {
   let interruptedDefender = false;
