@@ -75,13 +75,9 @@ exports.StateEntered = function (ctx, state) {
 
   // Build the inline replay blob per OQ-12 resolution. Both seats build
   // byte-identical payloads from byte-identical deterministic world state,
-  // satisfying T2 consensus hashing.
-  //
-  // TODO(B5): wire commits[] from the commit-phase event log once
-  // scripts/states/commit.ts (currently a stub) records SlotCommitted events
-  // per turn. The other replay fields (matchConfig, rngSeed, metadata) are
-  // best-effort reads from world state today; missing pieces fall back to
-  // sentinel values so the payload schema stays valid.
+  // satisfying T2 consensus hashing. The commits[] feed comes from
+  // timeline.customData.commitLog, populated each commit -> reveal edge by
+  // scripts/states/commit.ts (B5).
   var replay = buildReplayBlob(ctx, world, {
     outcome: outcome,
     p1Hp: p1Hp,
@@ -212,10 +208,11 @@ function emitResolverEventMe(ctx, event) {
  *   - matchConfig.mode: 'casual' (HVCD MVP only ships casual).
  *   - rngSeed: read from timeline.props.rngSeed if present (match-setup is
  *     responsible for seeding it; currently a B2 stub — see match-setup.ts).
- *   - commits: TODO(B5) — commit.ts is a stub and does not yet record a
- *     SlotCommitted event log. We emit `[]` and will backfill when commits
- *     start being tracked deterministically. Even with empty commits the
- *     blob is useful for outcome verification.
+ *   - commits: read from `timeline.customData.commitLog`, an append-only
+ *     Array<{ turn, seat, slots: SequenceSlot[] }> populated by
+ *     scripts/states/commit.ts on each commit -> reveal lock-in. Both seats
+ *     observe the same input stream and apply the same deterministic
+ *     mutations, so the log is byte-identical across seats.
  *   - metadata.startedAt / endedAt: read from timeline if tracked, else null.
  */
 function buildReplayBlob(ctx, world, summary) {
@@ -247,10 +244,10 @@ function buildReplayBlob(ctx, world, summary) {
     }
   }
 
-  // TODO(B5): replace with the real commit history once scripts/states/commit.ts
-  // records SlotCommitted events per turn. Empty list still allows outcome
-  // verification on the receiving end.
-  var commits = [];
+  // Pull the deterministic commit log appended on each commit -> reveal
+  // edge by scripts/states/commit.ts. Defensively shape entries so the
+  // canonical hash inputs are stable even if upstream pushes extra fields.
+  var commits = readCommitLog(timeline);
 
   return {
     moduleRepo: moduleRepo,
@@ -268,6 +265,30 @@ function buildReplayBlob(ctx, world, summary) {
       outcome: summary.outcome,
     },
   };
+}
+
+/**
+ * Read the per-match commit log off the timeline entity. The log lives at
+ * `timeline.customData.commitLog` and is populated by scripts/states/commit.ts
+ * each time both seats lock in their commit-phase sequences (one entry per
+ * seat per turn). Returns a defensively-shaped array — entries with missing
+ * fields are coerced to schema-valid sentinels so canonicalStringify produces
+ * a stable hash even on partial / corrupted state.
+ */
+function readCommitLog(timeline) {
+  if (!timeline || !timeline.customData) return [];
+  var raw = timeline.customData.commitLog;
+  if (!Array.isArray(raw)) return [];
+  var out = new Array(raw.length);
+  for (var i = 0; i < raw.length; i++) {
+    var e = raw[i] || {};
+    out[i] = {
+      turn: typeof e.turn === 'number' ? e.turn : 0,
+      seat: e.seat === 'p1' || e.seat === 'p2' ? e.seat : 'p1',
+      slots: Array.isArray(e.slots) ? e.slots : [],
+    };
+  }
+  return out;
 }
 
 /**

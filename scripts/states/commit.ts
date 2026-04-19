@@ -5,23 +5,39 @@
  *   - add a slot (card from hand, spacer from pool, or item from inventory)
  *   - reorder slots
  *   - discard slots (one-way for rage/pool; items return to inventory)
- * Transitions out to `reveal` on input `commit_locked_in` when both seats
- * have signaled ready.
+ *   - clear the entire working sequence
+ * Transitions out to `reveal` on synthesized input `commit_locked_in` once both
+ * seats have flagged ready. At that point we snapshot the locked-in sequences
+ * to a deterministic per-match commit log so match-end.ts can attach them to
+ * the inline replay blob (OQ-12).
  *
- * STUB — no mutation logic yet. Track B2 will populate:
- *   - Per-seat ready flag; only emit commit_locked_in when both are ready.
- *   - Validation: minimum sequence frames (MIN_SEQUENCE_FRAMES = 10).
- *   - Validation: rage cost / block pool / item availability on add.
- *   - Resource deduction at add-time (one-way per §2 commit phase).
- *   - Emit SlotCommitted / SlotDiscardedFromSequence / SlotReordered /
- *     RagePaid / BlockPoolConsumed events per event-log-schema.md.
- *   - Hand mulligan between showdowns (§2 End of turn / refills).
+ * B5 — commit-history capture
+ * ---------------------------
+ * The commit log lives on `timeline.customData.commitLog` as
+ *   Array<{ turn: number, seat: 'p1'|'p2', slots: SequenceSlot[] }>
+ * appended on the commit -> reveal transition (one entry per seat per turn).
+ * Both seats receive the same input stream over the gameplay lane, apply the
+ * same deterministic mutations, and snapshot at the same FSM edge — so the
+ * log is byte-identical across seats and survives canonicalStringify hashing
+ * for T2 consensus (see match-end.ts).
+ *
+ * Mutations are deliberately minimal: we maintain the per-seat sequence
+ * entity's `props.slots` array and `props.ready` flag. Resource validation
+ * (rage cost / pool availability / hand membership) is left to a future B-track
+ * pass — the commit-log snapshot only requires that the working-sequence ECS
+ * state is correct at lock-in time, which both seats observe identically.
  */
+
 exports.StateEntered = function (ctx, state) {
   ctx.log('hvcd:state-entered', state.id);
-  // TODO(B2): emit CommitPhaseEnteredEvent.
-  // TODO(B2): reset per-seat ready flags, top up hand to HAND_SIZE,
-  //           refill block pool to 6 (between-showdowns refills, §2).
+  // Reset per-seat ready flags so a new commit phase is editable. The slot
+  // lists themselves persist across commit phases (sequence carryover is
+  // handled in showdown / pause-or-end).
+  var world = ctx.world;
+  var p1Seq = findPerSeatCo(world, 'hvcd.sequence', 'p1');
+  var p2Seq = findPerSeatCo(world, 'hvcd.sequence', 'p2');
+  if (p1Seq) { p1Seq.props = p1Seq.props || {}; p1Seq.props.ready = false; }
+  if (p2Seq) { p2Seq.props = p2Seq.props || {}; p2Seq.props.ready = false; }
 };
 
 exports.StateUpdate = function (ctx, dt, state) {
@@ -33,11 +49,186 @@ exports.StateExit = function (ctx, state) {
 };
 
 exports.StateInput = function (input, ctx, state) {
-  ctx.log('hvcd:commit:input', input && input.type);
-  // TODO(B2): dispatch on input.type:
-  //   - 'slot_add'      → validate + mutate sequence + deduct resources
-  //   - 'slot_discard'  → mutate sequence (preserve item charges per §12)
-  //   - 'slot_reorder'  → swap slot positions
-  //   - 'mulligan'      → redraw hand (free mulligan, §2 End of turn)
-  //   - 'commit_ready'  → mark seat ready; when both ready emit commit_locked_in
+  if (!input || typeof input.type !== 'string') return;
+  ctx.log('hvcd:commit:input', input.type);
+  var world = ctx.world;
+  var payload = input.payload || {};
+  var seatId = payload.seat;
+
+  switch (input.type) {
+    case 'slot_add':
+      applyToSeatSequence(world, seatId, function (slots) {
+        if (!payload.slot) return slots;
+        var idx = typeof payload.index === 'number' ? clampIndex(payload.index, slots.length) : slots.length;
+        var next = slots.slice();
+        next.splice(idx, 0, payload.slot);
+        return next;
+      });
+      return;
+
+    case 'slot_discard':
+      applyToSeatSequence(world, seatId, function (slots) {
+        if (typeof payload.index !== 'number') return slots;
+        if (payload.index < 0 || payload.index >= slots.length) return slots;
+        var next = slots.slice();
+        next.splice(payload.index, 1);
+        return next;
+      });
+      return;
+
+    case 'slot_reorder':
+      applyToSeatSequence(world, seatId, function (slots) {
+        if (typeof payload.from !== 'number' || typeof payload.to !== 'number') return slots;
+        if (payload.from < 0 || payload.from >= slots.length) return slots;
+        var to = clampIndex(payload.to, slots.length - 1);
+        var next = slots.slice();
+        var moved = next.splice(payload.from, 1)[0];
+        next.splice(to, 0, moved);
+        return next;
+      });
+      return;
+
+    case 'slot_clear':
+      applyToSeatSequence(world, seatId, function (_slots) { return []; });
+      return;
+
+    case 'commit_ready':
+      markReady(world, seatId, true);
+      tryLockIn(ctx, world);
+      return;
+
+    case 'commit_unready':
+      markReady(world, seatId, false);
+      return;
+
+    default:
+      return;
+  }
 };
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function clampIndex(i, max) {
+  if (i < 0) return 0;
+  if (i > max) return max;
+  return i;
+}
+
+function applyToSeatSequence(world, seatId, mutator) {
+  var ent = findPerSeatCo(world, 'hvcd.sequence', seatId);
+  if (!ent) return;
+  ent.props = ent.props || {};
+  var current = Array.isArray(ent.props.slots) ? ent.props.slots : [];
+  ent.props.slots = mutator(current);
+}
+
+function markReady(world, seatId, ready) {
+  var ent = findPerSeatCo(world, 'hvcd.sequence', seatId);
+  if (!ent) return;
+  ent.props = ent.props || {};
+  ent.props.ready = !!ready;
+}
+
+/**
+ * If both seats have signaled ready, snapshot their working sequences into the
+ * shared commit log on the timeline entity, emit SlotCommitted events, and
+ * dispatch `commit_locked_in` to advance the FSM. Both seats execute this
+ * deterministically since they share the same input stream and the same
+ * tick-ordered ECS state.
+ */
+function tryLockIn(ctx, world) {
+  var p1Seq = findPerSeatCo(world, 'hvcd.sequence', 'p1');
+  var p2Seq = findPerSeatCo(world, 'hvcd.sequence', 'p2');
+  if (!p1Seq || !p2Seq) return;
+  var p1Ready = !!(p1Seq.props && p1Seq.props.ready);
+  var p2Ready = !!(p2Seq.props && p2Seq.props.ready);
+  if (!p1Ready || !p2Ready) return;
+
+  var timeline = findSingletonCo(world, 'hvcd.timeline');
+  var turn = (timeline && timeline.props && typeof timeline.props.turnIndex === 'number')
+    ? timeline.props.turnIndex
+    : 0;
+
+  var p1Slots = (p1Seq.props && Array.isArray(p1Seq.props.slots)) ? p1Seq.props.slots : [];
+  var p2Slots = (p2Seq.props && Array.isArray(p2Seq.props.slots)) ? p2Seq.props.slots : [];
+
+  appendCommitLog(timeline, { turn: turn, seat: 'p1', slots: cloneSlots(p1Slots) });
+  appendCommitLog(timeline, { turn: turn, seat: 'p2', slots: cloneSlots(p2Slots) });
+
+  // Emit SlotCommitted events for the resolver event log (event-log-schema.md).
+  // Note: these aren't part of the typed ResolverEvent union today (commit-phase
+  // events are out of scope for the showdown resolver). Emitted as freeform
+  // bus events; downstream consumers ignore unknown kinds.
+  emitResolverEventCo(ctx, { kind: 'slot-committed', seat: 'p1', turn: turn, slots: cloneSlots(p1Slots) });
+  emitResolverEventCo(ctx, { kind: 'slot-committed', seat: 'p2', turn: turn, slots: cloneSlots(p2Slots) });
+
+  // Advance the FSM. The transition itself is permissive (commit-to-reveal.ts);
+  // we gate here.
+  if (ctx.stateMachine && typeof ctx.stateMachine.dispatch === 'function') {
+    ctx.stateMachine.dispatch({ type: 'commit_locked_in', payload: { turn: turn } });
+  }
+}
+
+function appendCommitLog(timeline, entry) {
+  if (!timeline) return;
+  timeline.customData = timeline.customData || {};
+  if (!Array.isArray(timeline.customData.commitLog)) {
+    timeline.customData.commitLog = [];
+  }
+  timeline.customData.commitLog.push(entry);
+}
+
+function cloneSlots(slots) {
+  // Shallow clone is enough — SequenceSlot is a flat tagged-union shape with
+  // primitive fields per resolver/types.ts. JSON round-trip would also work
+  // but we keep this hot-path cheap.
+  var out = new Array(slots.length);
+  for (var i = 0; i < slots.length; i++) {
+    var s = slots[i] || {};
+    var copy = {};
+    for (var k in s) {
+      if (Object.prototype.hasOwnProperty.call(s, k)) copy[k] = s[k];
+    }
+    out[i] = copy;
+  }
+  return out;
+}
+
+// Helper names are suffixed `Co` (commit) so each state-script file declares
+// uniquely-named top-level functions. The runtime sandbox treats each file
+// as its own module, but tsc lints them together as ambient-script globals
+// and complains about duplicate function implementations. Suffixing avoids
+// that without introducing a shared module dependency between sandboxed files.
+function findSingletonCo(world, subtype) {
+  if (!world || !world.entities) return null;
+  var iter = world.entities.all ? world.entities.all() : world.entities;
+  var found = null;
+  if (iter.forEach) iter.forEach(function (e) { if (!found && e.subtype === subtype) found = e; });
+  else for (var i = 0; i < iter.length; i++) if (iter[i].subtype === subtype) { found = iter[i]; break; }
+  return found;
+}
+
+function findPerSeatCo(world, subtype, seatId) {
+  if (!world || !world.entities) return null;
+  var iter = world.entities.all ? world.entities.all() : world.entities;
+  var found = null;
+  var consider = function (e) {
+    if (found || e.subtype !== subtype) return;
+    var ownerSeat = (e.props && e.props.ownerSeat) || e.owner;
+    if (ownerSeat === seatId) found = e;
+  };
+  if (iter.forEach) iter.forEach(consider);
+  else for (var i = 0; i < iter.length; i++) consider(iter[i]);
+  return found;
+}
+
+function emitResolverEventCo(ctx, event) {
+  var bus = ctx.world && (ctx.world.events || ctx.world.eventBus);
+  if (bus && typeof bus.emit === 'function') {
+    bus.emit('resolverEvents', event);
+  } else {
+    ctx.log('hvcd:event', event.kind);
+  }
+}
