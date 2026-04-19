@@ -5,6 +5,12 @@
  *   - If any seat has HP <= 0 (and it wasn't a mutual KO draw), the match ends.
  *   - Otherwise, the match continues: refill block pool (§2 End of turn),
  *     emit turn-ended, and auto-transition back to commit.
+ *
+ * NOTE ON HELPER NAMING: the state files are loaded as CommonJS modules at
+ * runtime, so they share TypeScript's top-level scope. Helper functions
+ * here are suffixed `Pe` (pause-or-end) so they don't collide with the
+ * identically-purposed helpers in sibling state files (commit.ts → `Co`,
+ * match-setup.ts → `Ms`, match-end.ts → `Me`, etc.).
  */
 // @ts-ignore
 var counterTrayScript = require('../objects/counterTray');
@@ -13,9 +19,9 @@ exports.StateEntered = function (ctx, state) {
   ctx.log('hvcd:state-entered', state.id);
 
   var world = ctx.world;
-  var p1Tray = findPerSeat(world, 'hvcd.counterTray', 'p1');
-  var p2Tray = findPerSeat(world, 'hvcd.counterTray', 'p2');
-  var timeline = findSingleton(world, 'hvcd.timeline');
+  var p1Tray = findPerSeatPe(world, 'hvcd.counterTray', 'p1');
+  var p2Tray = findPerSeatPe(world, 'hvcd.counterTray', 'p2');
+  var timeline = findSingletonPe(world, 'hvcd.timeline');
 
   var p1Hp = p1Tray && p1Tray.props ? p1Tray.props.hp : null;
   var p2Hp = p2Tray && p2Tray.props ? p2Tray.props.hp : null;
@@ -23,13 +29,13 @@ exports.StateEntered = function (ctx, state) {
   var turnIndex = timeline && timeline.props ? (timeline.props.turnIndex || 0) : 0;
 
   if (p1Hp !== null && p1Hp <= 0) {
-    emit(ctx, { kind: 'match-ended', outcome: 'p2' });
-    dispatch(ctx, 'match_ended', { winner: 'p2' });
+    emitPe(ctx, { kind: 'match-ended', outcome: 'p2' });
+    dispatchPe(ctx, 'match_ended', { winner: 'p2' });
     return;
   }
   if (p2Hp !== null && p2Hp <= 0) {
-    emit(ctx, { kind: 'match-ended', outcome: 'p1' });
-    dispatch(ctx, 'match_ended', { winner: 'p1' });
+    emitPe(ctx, { kind: 'match-ended', outcome: 'p1' });
+    dispatchPe(ctx, 'match_ended', { winner: 'p1' });
     return;
   }
 
@@ -37,7 +43,7 @@ exports.StateEntered = function (ctx, state) {
   if (p1Tray) counterTrayScript.refillBetweenShowdowns(ctx, p1Tray.id);
   if (p2Tray) counterTrayScript.refillBetweenShowdowns(ctx, p2Tray.id);
 
-  emit(ctx, { kind: 'turn-ended', turnIndex: turnIndex, endGlobalFrame: currentFrame });
+  emitPe(ctx, { kind: 'turn-ended', turnIndex: turnIndex, endGlobalFrame: currentFrame });
 
   // Bump turnIndex for the next round.
   if (timeline) {
@@ -46,7 +52,7 @@ exports.StateEntered = function (ctx, state) {
   }
 
   // Auto-transition back to commit.
-  dispatch(ctx, 'continue', { turnIndex: turnIndex + 1 });
+  dispatchPe(ctx, 'continue', { turnIndex: turnIndex + 1 });
 };
 
 exports.StateUpdate = function (_ctx, _dt, _state) {};
@@ -61,7 +67,7 @@ exports.StateInput = function (_input, _ctx, _state) {
 
 // ----- helpers -----
 
-function findSingleton(world, subtype) {
+function findSingletonPe(world, subtype) {
   if (!world || !world.entities) return null;
   var iter = world.entities.all ? world.entities.all() : world.entities;
   var found = null;
@@ -70,7 +76,7 @@ function findSingleton(world, subtype) {
   return found;
 }
 
-function findPerSeat(world, subtype, seatId) {
+function findPerSeatPe(world, subtype, seatId) {
   if (!world || !world.entities) return null;
   var iter = world.entities.all ? world.entities.all() : world.entities;
   var found = null;
@@ -84,14 +90,14 @@ function findPerSeat(world, subtype, seatId) {
   return found;
 }
 
-function emit(ctx, ev) {
+function emitPe(ctx, ev) {
   var bus = ctx.world && (ctx.world.events || ctx.world.eventBus);
   if (bus && typeof bus.emit === 'function') bus.emit('resolverEvents', ev);
   else ctx.log('hvcd:event', ev.kind);
   // Tee into timeline.customData.eventLog so match-end's replay artifact
   // captures lifecycle events (turn-ended / match-ended) emitted from this
   // state. Mirrors the showdown / commit teeing paths.
-  var timeline = findSingleton(ctx.world, 'hvcd.timeline');
+  var timeline = findSingletonPe(ctx.world, 'hvcd.timeline');
   appendEventLogPe(timeline, ev);
 }
 
@@ -109,7 +115,7 @@ function appendEventLogPe(timeline, event) {
   timeline.customData.eventLog.push(event);
 }
 
-function dispatch(ctx, type, payload) {
+function dispatchPe(ctx, type, payload) {
   if (ctx.stateMachine && typeof ctx.stateMachine.dispatch === 'function') {
     ctx.stateMachine.dispatch({ type: type, payload: payload });
   }

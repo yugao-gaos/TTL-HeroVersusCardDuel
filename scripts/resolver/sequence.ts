@@ -88,13 +88,14 @@ export function tryDequeue(
     return 'placed';
   }
 
-  // card | item
-  const card = lookupCard(slot.cardId ?? slot.itemId);
+  // card | item — discriminated-union narrow so TS resolves the right id.
+  const lookupId = slot.kind === 'card' ? slot.cardId : slot.itemId;
+  const card = lookupCard(lookupId);
   if (!card) {
     events.push({
       kind: 'diagnostic',
       level: 'error',
-      message: `unknown card/item id: ${('cardId' in slot ? slot.cardId : slot.itemId) ?? '??'}`,
+      message: `unknown card/item id: ${lookupId ?? '??'}`,
     });
     return 'fizzled';
   }

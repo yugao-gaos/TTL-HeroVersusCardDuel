@@ -19,6 +19,11 @@
  *
  * This state script is the thin glue: on entry, gather per-seat state from
  * ECS, call runShowdown(), then write results back.
+ *
+ * NOTE ON HELPER NAMING: the state files are loaded as CommonJS modules at
+ * runtime and share TypeScript's top-level scope. Helper functions here
+ * are suffixed `Sh` (showdown) so they don't collide with the identically-
+ * purposed helpers in sibling state files.
  */
 // @ts-ignore
 var timelineScript = require('../objects/timeline');
@@ -35,7 +40,7 @@ exports.StateEntered = function (ctx, state) {
   ctx.log('hvcd:state-entered', state.id);
   // Gather ECS handles for the two seats.
   var world = ctx.world;
-  var timeline = findSingleton(world, 'hvcd.timeline');
+  var timeline = findSingletonSh(world, 'hvcd.timeline');
   if (!timeline) {
     ctx.log('hvcd:showdown:error', 'no timeline singleton found');
     return;
@@ -118,7 +123,8 @@ exports.StateInput = function (_input, _ctx, _state) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function findSingleton(world, subtype) {
+// Renamed from `findSingleton` — see NOTE ON HELPER NAMING above.
+function findSingletonSh(world, subtype) {
   if (!world || !world.entities) return null;
   // World.entities supports iteration per TabletopLabs EntityManager.
   var iter = world.entities.all ? world.entities.all() : world.entities;
@@ -136,7 +142,7 @@ function findSingleton(world, subtype) {
   return null;
 }
 
-function findPerSeat(world, subtype, seatId) {
+function findPerSeatSh(world, subtype, seatId) {
   if (!world || !world.entities) return null;
   var all = [];
   var iter = world.entities.all ? world.entities.all() : world.entities;
@@ -152,10 +158,10 @@ function findPerSeat(world, subtype, seatId) {
 }
 
 function gatherSeat(world, seatId) {
-  var sequence = findPerSeat(world, 'hvcd.sequence', seatId);
-  var tray = findPerSeat(world, 'hvcd.counterTray', seatId);
-  var sideArea = findPerSeat(world, 'hvcd.sideArea', seatId);
-  var hero = findPerSeat(world, 'hvcd.hero', seatId);
+  var sequence = findPerSeatSh(world, 'hvcd.sequence', seatId);
+  var tray = findPerSeatSh(world, 'hvcd.counterTray', seatId);
+  var sideArea = findPerSeatSh(world, 'hvcd.sideArea', seatId);
+  var hero = findPerSeatSh(world, 'hvcd.hero', seatId);
   if (!sequence || !tray || !sideArea) return null;
   return { sequence: sequence, tray: tray, sideArea: sideArea, hero: hero };
 }

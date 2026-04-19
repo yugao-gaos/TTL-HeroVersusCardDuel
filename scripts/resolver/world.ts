@@ -344,7 +344,11 @@ export function runShowdown(
     events.push({ kind: 'showdown-paused', turnIndex: state.turnIndex, reason: 'combo-drop' });
   } else if (endReason === 'sequence-exhaustion') {
     events.push({ kind: 'showdown-paused', turnIndex: state.turnIndex, reason: 'sequence-exhaustion' });
-  } else if (endReason === 'both-exhausted' || endReason === 'no-engagement') {
+  } else if (endReason === 'no-engagement') {
+    // No code path currently assigns 'both-exhausted' to endReason — it's
+    // part of the declared ShowdownRunResult['endReason'] union but only
+    // 'no-engagement' reaches this branch today. The emitted pause reason
+    // stays 'both-exhausted' to match combat-system.md's FSM vocabulary.
     events.push({ kind: 'showdown-paused', turnIndex: state.turnIndex, reason: 'both-exhausted' });
   } else {
     events.push({ kind: 'showdown-paused', turnIndex: state.turnIndex, reason: 'admin-halt' });
