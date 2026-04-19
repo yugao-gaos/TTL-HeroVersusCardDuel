@@ -1385,14 +1385,33 @@ function AvatarRigImpl({ seatId, events }) {
   ] });
 }
 const AvatarRig = memo(AvatarRigImpl);
-const SLOT_BINDINGS = [
+function shouldRegisterInlineMonitor(api) {
+  const override = globalThis.__HVCD_MONITOR_MODE;
+  if (override === "inline") return true;
+  if (override === "web-surface") return false;
+  const slot = api.manifest?.declarations?.rendererSlots?.find(
+    (s) => s.slotId === "hvcd.monitorMesh"
+  );
+  const mount = slot?.mount;
+  return !mount || mount.type !== "web-surface";
+}
+function installMonitorEventForwarder(api) {
+  api.subscribeToEvents((event) => {
+    if (!event || typeof event !== "object") return;
+    const envelope = {
+      kind: "resolverEvent",
+      event
+    };
+    api.emitToWebSurface("hvcd.monitorMesh", envelope);
+  });
+}
+const SLOT_BINDINGS_NON_MONITOR = [
   // Registry-authoritative ids
   ["hvcd.cabinet", CabinetChassis],
   ["hvcd.timelineRail", TimelineRail],
   ["hvcd.sequenceLanes", SequenceLane],
   ["hvcd.chipTrays", ChipTray],
   ["hvcd.inventoryRack", InventoryRack],
-  ["hvcd.monitorMesh", MonitorMesh],
   ["hvcd.projectileLayer", ProjectileLayer],
   ["hvcd.avatarRig", AvatarRig],
   // Alias / not-yet-registry ids (see doc comment above)
@@ -1402,8 +1421,13 @@ const SLOT_BINDINGS = [
   ["hvcd.sideArea", SideArea]
 ];
 function register(api) {
-  for (const [slotId, component] of SLOT_BINDINGS) {
+  for (const [slotId, component] of SLOT_BINDINGS_NON_MONITOR) {
     api.registerRendererSlot(slotId, component);
+  }
+  if (shouldRegisterInlineMonitor(api)) {
+    api.registerRendererSlot("hvcd.monitorMesh", MonitorMesh);
+  } else {
+    installMonitorEventForwarder(api);
   }
 }
 export {
