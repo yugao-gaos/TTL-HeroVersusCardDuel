@@ -7,7 +7,7 @@
   "platform": {
     "min": ">=0.0.0"
   },
-  "contractsCommitSha": "501de0d",
+  "contractsCommitSha": "a26cbf7",
   "entrypoints": {
     "bundle": "https://raw.githubusercontent.com/yugao-gaos/TTL-HeroVersusCardDuel/main/dist/module-bundle.js",
     "remotionComposition": "scripts/monitor/MonitorComposition.tsx"
@@ -44,8 +44,6 @@
         "privacy": "public",
         "mount": {
           "type": "web-surface",
-          "url": "https://hvcd.example/monitor/:sessionId",
-          "allowedOrigins": ["https://hvcd.example"],
           "textureFps": 30
         }
       },

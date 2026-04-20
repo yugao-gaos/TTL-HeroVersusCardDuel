@@ -23,22 +23,27 @@ function test(name: string, fn: () => void | Promise<void>): void {
   tests.push([name, fn]);
 }
 
-test('hvcd.monitorMesh declares a web-surface mount', () => {
+test('hvcd.monitorMesh declares a web-surface mount (URL/origins live in project config)', () => {
   const manifest = loadManifest();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const slots = (manifest.declarations as any).rendererSlots as Array<{
     slotId: string;
-    mount?: { type?: string; url?: string; allowedOrigins?: string[] };
+    mount?: { type?: string; url?: string; allowedOrigins?: string[]; textureFps?: number };
   }>;
   const monitor = slots.find((s) => s.slotId === 'hvcd.monitorMesh');
   assert.ok(monitor, 'hvcd.monitorMesh must be declared');
   assert.equal(monitor!.mount?.type, 'web-surface');
-  assert.match(
-    monitor!.mount?.url ?? '',
-    /\/monitor\/:sessionId$/,
-    'URL must end in /monitor/:sessionId so the platform substitutes the session id',
+  // Wave 5: `url` + `allowedOrigins` are deliberately absent — they live in
+  // `project_web_surface_mounts`, edited via the TabletopLabs dashboard per
+  // deployment (staging vs prod vs custom domain). Keep the behavioral
+  // constraints (textureFps etc.) in the manifest though.
+  assert.equal(monitor!.mount?.url, undefined, 'URL should NOT be in manifest post-Wave-5');
+  assert.equal(
+    monitor!.mount?.allowedOrigins,
+    undefined,
+    'allowedOrigins should NOT be in manifest post-Wave-5',
   );
-  assert.deepEqual(monitor!.mount?.allowedOrigins?.sort(), ['https://hvcd.example']);
+  assert.equal(monitor!.mount?.textureFps, 30);
 });
 
 test('every other slot keeps the React-component path (no mount or mount.type === "react-component")', () => {
